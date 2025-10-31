@@ -4,8 +4,8 @@ services:
     env: node
     plan: free
     # Explicitly sets the root directory for this service.
-    # This ensures Render only looks inside the Backend folder.
-    rootDir: Backend
+    # This ensures Render only looks inside the Back-end folder.
+    rootDir: Back-end
     buildCommand: 'npm install'
     startCommand: 'npm start'
     healthCheckPath: /
