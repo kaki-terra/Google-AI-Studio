@@ -64,8 +64,11 @@ const Header: React.FC<HeaderProps> = ({ onOpenModal, activeSection }) => {
   return (
     <header className="bg-[#FFFAF0] shadow-md sticky top-0 z-50">
       <div className="container mx-auto px-6 py-3 flex justify-between items-center">
-        <div className="text-3xl font-brand text-[#D99A9A]">
-          BoloFlix
+        <div>
+          <div className="text-3xl font-brand text-[#D99A9A]">
+            BoloFlix
+          </div>
+          <p className="text-xs text-gray-500 -mt-1 ml-1">By Quintal dos Kitutes</p>
         </div>
 
         {/* Desktop Navigation */}
