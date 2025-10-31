@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
 import HeroSection from './components/HeroSection';
 import LazyLoadWrapper from './components/LazyLoadWrapper';
@@ -16,8 +17,9 @@ const BusinessModelSection = lazy(() => import('./components/BusinessModelSectio
 const Footer = lazy(() => import('./components/Footer'));
 const OnboardingModal = lazy(() => import('./components/OnboardingModal'));
 const CheckoutModal = lazy(() => import('./components/CheckoutModal'));
+const AdminPage = lazy(() => import('./components/AdminPage'));
 
-const App: React.FC = () => {
+const MainLayout: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
@@ -130,5 +132,20 @@ const App: React.FC = () => {
     </div>
   );
 };
+
+
+const App: React.FC = () => {
+  return (
+    <BrowserRouter>
+      <Suspense fallback={<div className="w-full h-screen bg-[#FFF9F2]" />}>
+        <Routes>
+          <Route path="/" element={<MainLayout />} />
+          <Route path="/admin" element={<AdminPage />} />
+        </Routes>
+      </Suspense>
+    </BrowserRouter>
+  );
+};
+
 
 export default App;

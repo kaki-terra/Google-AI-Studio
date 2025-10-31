@@ -210,7 +210,7 @@ app.post('/custom-cake-description', async (req, res) => {
 });
 
 
-// --- ENDPOINT DE ASSINATURA ---
+// --- ENDPOINTS DE DADOS ---
 
 app.post('/subscribe', async (req, res) => {
   console.log('🎉 Novo pedido de assinatura recebido!');
@@ -257,6 +257,27 @@ app.post('/subscribe', async (req, res) => {
     res.status(500).json({ message: 'Ocorreu um erro inesperado no servidor.' });
   }
 });
+
+// Endpoint para o Painel de Admin
+app.get('/subscriptions', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .order('created_at', { ascending: false }); // Pega os mais recentes primeiro
+
+    if (error) {
+      console.error('Erro ao buscar assinaturas:', error);
+      return res.status(500).json({ message: 'Erro ao buscar dados das assinaturas.', error: error.message });
+    }
+
+    res.status(200).json(data);
+  } catch (err) {
+    console.error('Erro inesperado no servidor (/subscriptions):', err);
+    res.status(500).json({ message: 'Ocorreu um erro inesperado no servidor.' });
+  }
+});
+
 
 app.listen(port, () => {
   console.log(`🎂 Servidor da BoloFlix (backend) rodando na porta ${port}`);
