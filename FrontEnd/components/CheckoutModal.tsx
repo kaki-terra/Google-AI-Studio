@@ -11,8 +11,8 @@ interface CheckoutModalProps {
 type Step = 'preferences' | 'payment' | 'loading' | 'success';
 
 // A URL do backend agora é definida por uma variável de ambiente.
-// Isso permite que o frontend na Vercel encontre o backend no Render.
-const API_URL = process.env.BACKEND_URL || 'http://localhost:3001';
+// Esta é a correção final: usamos o nome que a Vercel está forçando.
+const API_URL = process.env.URL_DE_ACKEND || 'http://localhost:3001';
 
 
 const planPreferences: { [key: string]: string[] } = {
