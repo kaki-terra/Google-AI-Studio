@@ -10,6 +10,11 @@ interface CheckoutModalProps {
 
 type Step = 'preferences' | 'payment' | 'loading' | 'success';
 
+// A URL do backend agora é definida por uma variável de ambiente.
+// Isso permite que o frontend na Vercel encontre o backend no Render.
+const API_URL = process.env.BACKEND_URL || 'http://localhost:3001';
+
+
 const planPreferences: { [key: string]: string[] } = {
     'Bolo Curioso': ['Sabores Tradicionais (Cenoura, Fubá, Chocolate)'],
     'Bolo Apaixonado': ['Estilo Tradicional', 'Estilo Fit (Menos açúcar)', 'Estilo Vegano'],
@@ -91,16 +96,39 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, plan }) 
         setStep('loading');
 
         try {
-            // Simulate payment processing
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            const subscriptionData = {
+                customerName: name,
+                planTitle: plan.title,
+                planPrice: plan.price,
+                flavorPreference: selectedFlavor,
+                deliveryDay: selectedDay,
+                deliveryTime: selectedTime,
+            };
             
+            const response = await fetch(`${API_URL}/subscribe`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(subscriptionData),
+            });
+
+            if (!response.ok) {
+                 const errorData = await response.json();
+                throw new Error(errorData.message || 'Falha ao registrar a assinatura.');
+            }
+
             const message = await generateWelcomeMessage(plan.title, name, selectedDay);
             setWelcomeMessage(message);
             setStep('success');
 
         } catch (err: any) {
-            console.error("Failed to generate welcome message", err);
-            setError(err.message || 'Ocorreu um erro ao finalizar. Tente novamente.');
+            console.error("Failed to submit subscription", err);
+            if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
+                setError('Não foi possível conectar ao servidor. Verifique se a "cozinha" (o backend) está ligada e rodando no terminal. 😉');
+            } else {
+                setError(err.message || 'Ocorreu um erro ao finalizar. Tente novamente.');
+            }
             setStep('payment');
         }
     };
@@ -187,7 +215,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, plan }) 
                     </div>
                 )}
                 
-                {step === 'loading' && <LoadingSpinner text="Processando seu pagamento..." />}
+                {step === 'loading' && <LoadingSpinner text="Registrando sua assinatura..." />}
 
                 {step === 'success' && (
                      <div className="text-center flex flex-col items-center justify-center h-80">
