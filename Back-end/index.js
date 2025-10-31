@@ -11,6 +11,7 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 if (!supabaseUrl || !supabaseKey) {
   console.error("ERRO: Variáveis de ambiente SUPABASE_URL e SUPABASE_KEY são obrigatórias.");
+  // process.exit(1); // Em produção, é bom parar o servidor se a config estiver faltando.
 }
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -18,6 +19,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const geminiApiKey = process.env.GEMINI_API_KEY;
 if (!geminiApiKey) {
     console.error("ERRO: Variável de ambiente GEMINI_API_KEY é obrigatória.");
+    // process.exit(1);
 }
 const ai = new GoogleGenAI({ apiKey: geminiApiKey });
 const model = ai.models;
@@ -108,6 +110,103 @@ app.post('/welcome-message', async (req, res) => {
      // Não falha o processo se a mensagem falhar, apenas envia uma padrão.
      res.json({ message: "Sua assinatura foi confirmada com sucesso! Prepare-se para receber muito carinho em forma de bolo." });
   }
+});
+
+app.get('/investor-pitch', async (req, res) => {
+    const prompt = `Crie um pitch de apresentação conciso e persuasivo para investidores da 'BoloFlix', um serviço de assinatura de bolos caseiros. A identidade da marca é nostálgica, acolhedora e familiar, com uma paleta de cores creme, marrom claro e rosa pastel. Destaque o conceito de "Netflix de bolos", os temas mensais surpresa e os diferentes planos de assinatura. Formate a resposta usando markdown para títulos e listas.`;
+    try {
+        const response = await model.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+        res.json({ pitch: response.text });
+    } catch (error) {
+        console.error('Erro na IA (investor-pitch):', error);
+        res.status(500).json({ message: "Erro ao gerar pitch." });
+    }
+});
+
+app.get('/business-model-canvas', async (req, res) => {
+    const prompt = `Gere um Business Model Canvas para a 'BoloFlix', um serviço de assinatura de bolos caseiros. O público-alvo são famílias e pessoas que apreciam comida caseira e nostálgica. O serviço oferece entregas semanais/mensais com caixas temáticas. A monetização é através de planos de assinatura.`;
+    try {
+        const response = await model.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                  type: Type.OBJECT,
+                  properties: {
+                    keyPartners: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    keyActivities: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    keyResources: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    valuePropositions: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    customerRelationships: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    channels: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    customerSegments: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    costStructure: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    revenueStreams: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  },
+                },
+            },
+        });
+        res.json({ canvas: JSON.parse(response.text) });
+    } catch (error) {
+        console.error('Erro na IA (business-model-canvas):', error);
+        res.status(500).json({ message: "Erro ao gerar canvas." });
+    }
+});
+
+app.get('/financial-estimate', async (req, res) => {
+    const prompt = `Forneça uma estimativa financeira básica para o primeiro ano da 'BoloFlix', um serviço de assinatura de bolos. Considere três planos: 'Curioso' (R$60/mês, 50 assinantes), 'Apaixonado' (R$120/mês, 30 assinantes) e 'Família' (R$200/mês, 20 assinantes). Estime os custos mensais para ingredientes, embalagens, entrega, marketing e um pequeno salário. Calcule a receita mensal projetada, custos totais e lucro líquido. Apresente o resultado em formato markdown, de forma clara e simples.`;
+    try {
+        const response = await model.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+        res.json({ estimate: response.text });
+    } catch (error) {
+        console.error('Erro na IA (financial-estimate):', error);
+        res.status(500).json({ message: "Erro ao gerar estimativa." });
+    }
+});
+
+app.get('/testimonials', async (req, res) => {
+    const prompt = `Gere 3 depoimentos de clientes para a 'BoloFlix', um serviço de assinatura de bolos caseiros. O tom deve ser caloroso, pessoal e nostálgico. Cada depoimento deve ter "quote", "author", e "favoriteCake". Formate a resposta EXCLUSIVAMENTE como um array de objetos JSON.`;
+    try {
+        const response = await model.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { responseMimeType: "application/json", responseSchema: {
+                type: Type.ARRAY,
+                items: { type: Type.OBJECT, properties: {
+                    quote: { type: Type.STRING },
+                    author: { type: Type.STRING },
+                    favoriteCake: { type: Type.STRING },
+                }},
+            }},
+        });
+        res.json({ testimonials: JSON.parse(response.text) });
+    } catch (error) {
+        console.error('Erro na IA (testimonials):', error);
+        res.status(500).json({ message: "Erro ao gerar depoimentos." });
+    }
+});
+
+app.post('/custom-cake-description', async (req, res) => {
+    const creation = req.body;
+    const prompt = `Um cliente montou um bolo com: Massa: ${creation.base}, Recheio: ${creation.filling}, Cobertura: ${creation.topping}. Crie um nome e uma descrição para este bolo. Responda EXCLUSIVAMENTE como um objeto JSON com chaves "cakeName" e "description".`;
+    try {
+        const response = await model.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: { responseMimeType: "application/json", responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    cakeName: { type: Type.STRING },
+                    description: { type: Type.STRING },
+                },
+            }},
+        });
+        res.json({ cake: JSON.parse(response.text) });
+    } catch (error) {
+        console.error('Erro na IA (custom-cake):', error);
+        res.status(500).json({ message: "Erro ao gerar descrição do bolo." });
+    }
 });
 
 
