@@ -3,6 +3,8 @@ services:
     name: boloflix-backend
     env: node
     plan: free
+    # O Render vai procurar o backend dentro desta pasta
+    rootDir: Backend 
     buildCommand: 'npm install'
     startCommand: 'npm start'
     healthCheckPath: /
