@@ -5,7 +5,11 @@ const HeroSection: React.FC<{ onOpenModal: () => void }> = ({ onOpenModal }) => 
     <section className="py-20 md:py-32 bg-gradient-to-b from-[#FFFAF0] to-[#FFF9F2]">
       <div className="container mx-auto px-6 text-center">
         <div className="flex justify-center mb-8">
-            <img src="https://picsum.photos/seed/boloflix-logo/300/300" alt="Novo logo da BoloFlix com uma fatia de bolo e um ramo de trigo" className="rounded-full shadow-2xl w-64 h-64 object-cover border-8 border-white"/>
+            <img 
+              src="https://picsum.photos/seed/boloflix-chalkboard-cake/300/300" 
+              alt="Novo logo conceitual da BoloFlix, com um bolo desenhado em giz numa lousa redonda" 
+              className="rounded-full shadow-2xl w-64 h-64 object-cover border-8 border-white"
+            />
         </div>
         <h1 className="text-4xl md:text-6xl font-bold mb-4 text-[#8D6E63]">
           O carinho do bolo de vó, <br /> toda semana na sua casa.
