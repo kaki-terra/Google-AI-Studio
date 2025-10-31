@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Plan } from '../types';
-import { generateWelcomeMessage, checkDeliveryAvailability } from '../services/geminiService';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -10,8 +9,7 @@ interface CheckoutModalProps {
 
 type Step = 'preferences' | 'payment' | 'loading' | 'success';
 
-// CORREÇÃO: No frontend (Vite), as variáveis de ambiente devem ser acessadas com `import.meta.env`
-// e prefixadas com VITE_ por segurança. Usamos um nome padrão (VITE_BACKEND_URL) e um fallback para o ambiente local.
+// CORREÇÃO: Usamos a variável de ambiente para apontar para nosso backend, seja localmente ou na internet.
 const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 
@@ -75,7 +73,15 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, plan }) 
         setAvailabilityMsg('');
         setIsAvailable(false);
         try {
-            const { available, message } = await checkDeliveryAvailability(selectedDay, selectedTime.split(' ')[0].toLowerCase());
+            const response = await fetch(`${API_URL}/check-availability`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ day: selectedDay, time: selectedTime }),
+            });
+            if (!response.ok) {
+              throw new Error('Falha na comunicação com o servidor de disponibilidade.');
+            }
+            const { available, message } = await response.json();
             setAvailabilityMsg(message);
             setIsAvailable(available);
         } catch (err: any) {
@@ -96,6 +102,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, plan }) 
         setStep('loading');
 
         try {
+            // 1. Enviar dados da assinatura para o backend salvar no DB
             const subscriptionData = {
                 customerName: name,
                 planTitle: plan.title,
@@ -105,30 +112,42 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, plan }) 
                 deliveryTime: selectedTime,
             };
             
-            const response = await fetch(`${API_URL}/subscribe`, {
+            const subResponse = await fetch(`${API_URL}/subscribe`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(subscriptionData),
             });
 
-            if (!response.ok) {
-                 const errorData = await response.json();
+            if (!subResponse.ok) {
+                 const errorData = await subResponse.json();
                 throw new Error(errorData.message || 'Falha ao registrar a assinatura.');
             }
+            
+            // 2. Pedir ao backend para gerar a mensagem de boas-vindas
+            const welcomeResponse = await fetch(`${API_URL}/welcome-message`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                planTitle: plan.title,
+                customerName: name,
+                deliveryDay: selectedDay,
+              }),
+            });
+             if (!welcomeResponse.ok) {
+                // Se a mensagem de boas-vindas falhar, não quebramos o fluxo.
+                // A assinatura já foi salva, o que é o mais importante.
+                console.error("Falha ao gerar mensagem de boas-vindas, mas a assinatura foi criada.");
+                setWelcomeMessage("Sua assinatura foi confirmada com sucesso!");
+             } else {
+                const { message } = await welcomeResponse.json();
+                setWelcomeMessage(message);
+             }
 
-            const message = await generateWelcomeMessage(plan.title, name, selectedDay);
-            setWelcomeMessage(message);
             setStep('success');
 
         } catch (err: any) {
             console.error("Failed to submit subscription", err);
-            if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
-                setError('Não foi possível conectar ao servidor. Verifique se a "cozinha" (o backend) está ligada e rodando no terminal. 😉');
-            } else {
-                setError(err.message || 'Ocorreu um erro ao finalizar. Tente novamente.');
-            }
+            setError(err.message || 'Ocorreu um erro ao finalizar. Tente novamente.');
             setStep('payment');
         }
     };

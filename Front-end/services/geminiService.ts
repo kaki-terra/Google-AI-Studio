@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Modality } from "@google/genai";
-import { QuizAnswers, CakeCreation } from '../types';
+import { CakeCreation } from '../types';
 
 // CORREÇÃO: No frontend (Vite), as variáveis de ambiente devem ser acessadas com `import.meta.env`
 // e prefixadas com VITE_ por segurança.
@@ -90,92 +90,6 @@ export const generateFinancialEstimate = async (): Promise<string> => {
   }
 };
 
-export const generateTasteProfile = async (answers: QuizAnswers): Promise<string> => {
-  const prompt = `
-    Baseado nestas preferências para bolos:
-    - Vibe: ${answers.vibe}
-    - Momento de consumo: ${answers.moment}
-    - Preferência por frutas: ${answers.fruits}
-
-    Crie um "Perfil de Sabor BoloFlix" divertido e acolhedor para este usuário em um único parágrafo.
-    Depois, sugira um bolo caseiro delicioso que se encaixe perfeitamente neste perfil.
-    
-    Formate a resposta EXCLUSIVAMENTE como um objeto JSON com duas chaves: "profileDescription" e "cakeSuggestion".
-    Não inclua markdown (como \`\`\`json) na resposta.
-  `;
-
-  try {
-    const response = await model.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            profileDescription: { type: Type.STRING, description: "A descrição do perfil de sabor do usuário." },
-            cakeSuggestion: { type: Type.STRING, description: "A sugestão de bolo para o usuário." },
-          },
-        },
-      },
-    });
-    return response.text;
-  } catch (error) {
-    throw handleApiError(error, 'gerar seu perfil de sabor');
-  }
-};
-
-export const generateCakeOfTheMonth = async (): Promise<{ cakeDetails: any; imageUrl: string }> => {
-  try {
-    // 1. Generate Cake Details
-    const detailsResponse = await model.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: `Crie os detalhes para o 'Bolo do Mês' da BoloFlix com o tema 'Sabores da Infância'. O bolo é de fubá com goiabada. Gere um nome criativo e fofo, uma descrição nostálgica de 2-3 frases, e 3 notas de sabor principais. Formate como JSON com chaves: "cakeName", "description", e "flavorNotes" (um array de strings).`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            cakeName: { type: Type.STRING },
-            description: { type: Type.STRING },
-            flavorNotes: { type: Type.ARRAY, items: { type: Type.STRING } },
-          },
-        },
-      },
-    });
-    const cakeDetails = JSON.parse(detailsResponse.text);
-
-    // 2. Generate Cake Image using a free model
-    const imagePrompt = `Fotografia de comida de um bolo de fubá caseiro com pedaços de goiabada derretida por cima, muito apetitoso. O bolo está em uma louça de cerâmica vintage, sobre uma toalha de mesa xadrez em uma cozinha rústica e ensolarada. Estilo de fotografia acolhedor e nostálgico, com foco suave no fundo.`;
-    
-    const imageResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: { parts: [{ text: imagePrompt }] },
-        config: {
-            responseModalities: [Modality.IMAGE],
-        },
-    });
-
-    let imageUrl = '';
-    for (const part of imageResponse.candidates[0].content.parts) {
-        if (part.inlineData) {
-            const base64ImageBytes: string = part.inlineData.data;
-            imageUrl = `data:image/png;base64,${base64ImageBytes}`;
-            break; 
-        }
-    }
-    
-    if (!imageUrl) {
-        throw new Error("Não foi possível gerar a imagem do bolo a partir da resposta da API.");
-    }
-    
-    return { cakeDetails, imageUrl };
-
-  } catch (error) {
-    throw handleApiError(error, 'gerar o bolo do mês');
-  }
-};
-
 export const generateTestimonials = async (): Promise<string> => {
   const prompt = `
     Gere 3 depoimentos de clientes para a 'BoloFlix', um serviço de assinatura de bolos caseiros.
@@ -242,58 +156,5 @@ export const generateCustomCakeDescription = async (creation: CakeCreation): Pro
     return response.text;
   } catch (error) {
     throw handleApiError(error, 'gerar a descrição do seu bolo');
-  }
-};
-
-export const checkDeliveryAvailability = async (day: string, time: string): Promise<{ available: boolean; message: string; }> => {
-  const prompt = `
-    Aja como um sistema de logística para a 'BoloFlix'. Um cliente quer agendar uma entrega para ${day} no período da ${time}.
-    Sua tarefa é determinar a disponibilidade e fornecer uma mensagem amigável.
-
-    Responda EXCLUSIVAMENTE com um objeto JSON com duas chaves: "available" (um booleano) e "message" (uma string com a resposta para o cliente).
-
-    - Na maioria das vezes (cerca de 80% das vezes), a entrega deve estar disponível. A mensagem deve ser positiva. Ex: "Ótima notícia! Temos entregadores disponíveis para ${day} no período da ${time}."
-    - Ocasionalmente (cerca de 20% das vezes), a entrega deve estar indisponível. A mensagem deve ser amigável e sugerir uma alternativa. Ex: "Puxa! Nossas entregas para ${day} pela ${time} já estão lotadas. Que tal na parte da tarde?"
-    - Varie um pouco as mensagens para parecer natural.
-    - Não inclua markdown (como \`\`\`json) na resposta.
-  `;
-  try {
-    const response = await model.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            available: { type: Type.BOOLEAN },
-            message: { type: Type.STRING },
-          },
-          required: ["available", "message"],
-        },
-      },
-    });
-    return JSON.parse(response.text);
-  } catch (error) {
-    throw handleApiError(error, 'verificar a disponibilidade');
-  }
-};
-
-export const generateWelcomeMessage = async (planTitle: string, customerName: string, deliveryDay: string): Promise<string> => {
-  const prompt = `
-    Aja como a voz da marca 'BoloFlix'. Um novo cliente chamado(a) "${customerName}" acabou de assinar o plano "${planTitle}".
-    A primeira entrega dele(a) está agendada para acontecer toda "${deliveryDay}".
-    Escreva uma mensagem de boas-vindas curta (2-3 frases), calorosa e comemorativa.
-    Use um tom nostálgico e amigável, como se estivesse recebendo um novo membro na família.
-    Mencione o nome do cliente, o plano e confirme o dia da entrega para personalizar a mensagem.
-  `;
-  try {
-    const response = await model.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
-    return response.text;
-  } catch (error) {
-    throw handleApiError(error, 'gerar a mensagem de boas-vindas');
   }
 };

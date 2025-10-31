@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { generateTasteProfile } from '../services/geminiService';
 import { QuizAnswers, TasteProfile } from '../types';
+
+// O backend agora é o responsável por falar com a IA.
+const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 type Step = 'quiz' | 'loading' | 'result';
 
@@ -47,13 +49,23 @@ const OnboardingModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ i
         setStep('loading');
         setError(null);
         try {
-            const resultString = await generateTasteProfile(answers as QuizAnswers);
-            const result = JSON.parse(resultString);
+            const response = await fetch(`${API_URL}/taste-profile`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(answers),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Falha ao gerar perfil.');
+            }
+            
+            const result = await response.json();
             setProfile(result);
             setStep('result');
         } catch (err: any) {
             console.error("Failed to generate taste profile", err);
-            setError(err.message || "Não foi possível gerar seu perfil. Tente novamente.");
+            setError(err.message || "Oops! Tivemos um probleminha na cozinha ao gerar seu perfil de sabor. Por favor, tente novamente.");
             setStep('quiz'); 
         }
     };
