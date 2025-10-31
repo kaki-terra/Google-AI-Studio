@@ -1,69 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { generateCakeOfTheMonth } from '../services/geminiService';
+import React from 'react';
 import { CakeOfTheMonth } from '../types';
 
-const LoadingSkeleton: React.FC = () => (
-    <div className="bg-white rounded-2xl shadow-xl p-6 md:p-10 flex flex-col md:flex-row items-center gap-8 animate-pulse">
-        <div className="w-full md:w-1/2 h-64 bg-gray-200 rounded-lg"></div>
-        <div className="w-full md:w-1/2 space-y-4">
-            <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-            <div className="h-8 bg-gray-300 rounded w-3/4"></div>
-            <div className="h-4 bg-gray-200 rounded w-full"></div>
-            <div className="h-4 bg-gray-200 rounded w-5/6"></div>
-            <div className="flex space-x-2 pt-4">
-                <div className="h-6 bg-gray-200 rounded-full w-24"></div>
-                <div className="h-6 bg-gray-200 rounded-full w-24"></div>
-                <div className="h-6 bg-gray-200 rounded-full w-24"></div>
-            </div>
-            <div className="pt-4">
-                <div className="h-12 bg-gray-300 rounded-lg w-1/2"></div>
-            </div>
-        </div>
-    </div>
-);
+// Dados estáticos para o Bolo do Mês para evitar chamadas de API no carregamento da página.
+const staticCakeData: CakeOfTheMonth = {
+  cakeName: "Lembrança de Fubá com Goiabada",
+  description: "Uma receita clássica que abraça a alma. A massa fofinha de fubá encontra o doce derretido da goiabada, criando uma combinação perfeita para o café da tarde.",
+  flavorNotes: ["Aconchegante", "Doce na medida certa", "Textura macia"],
+  imageUrl: "https://picsum.photos/seed/fuba-goiabada/800/600" // Usando uma imagem estática
+};
+
 
 const CakeOfTheMonthSection: React.FC<{ onOpenModal: () => void }> = ({ onOpenModal }) => {
-    const [cakeData, setCakeData] = useState<CakeOfTheMonth | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        const fetchCakeData = async () => {
-            try {
-                const { cakeDetails, imageUrl } = await generateCakeOfTheMonth();
-                setCakeData({ ...cakeDetails, imageUrl });
-            } catch (err) {
-                console.error(err);
-                setError("Não conseguimos buscar a delícia do mês. Por favor, tente recarregar a página.");
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchCakeData();
-    }, []);
-
-    if (loading) {
-        return (
-            <section className="py-20 bg-[#FDF3E9]">
-                <div className="container mx-auto px-6 max-w-4xl">
-                    <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">A Delícia do Mês</h2>
-                    <p className="text-lg text-center text-gray-600 mb-12 max-w-2xl mx-auto">Preparando uma surpresa especial para você...</p>
-                    <LoadingSkeleton />
-                </div>
-            </section>
-        );
-    }
-    
-    if (error || !cakeData) {
-        return (
-            <section className="py-20 bg-[#FDF3E9]">
-                 <div className="container mx-auto px-6 max-w-4xl text-center">
-                    <p className="text-red-500">{error || "Ocorreu um erro."}</p>
-                </div>
-            </section>
-        );
-    }
+    const cakeData = staticCakeData;
 
     return (
         <section className="py-20 bg-[#FDF3E9]">
