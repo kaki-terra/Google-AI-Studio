@@ -49,3 +49,17 @@ export interface Plan {
   title: string;
   price: string;
 }
+
+// Fix for: Property 'env' does not exist on type 'ImportMeta'.
+// By adding this, we inform TypeScript about the shape of `import.meta.env`
+// which is a feature provided by Vite. The types are defined as potentially
+// undefined to match runtime behavior. This resolves the type errors in
+// services/geminiService.ts and components/CheckoutModal.tsx without adding new files.
+declare global {
+  interface ImportMeta {
+    readonly env: {
+      readonly VITE_API_KEY: string | undefined;
+      readonly VITE_BACKEND_URL: string | undefined;
+    };
+  }
+}

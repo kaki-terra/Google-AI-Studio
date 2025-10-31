@@ -10,9 +10,9 @@ interface CheckoutModalProps {
 
 type Step = 'preferences' | 'payment' | 'loading' | 'success';
 
-// A URL do backend agora é definida por uma variável de ambiente.
-// Esta é a correção final: usamos o nome que a Vercel está forçando.
-const API_URL = process.env.URL_DE_ACKEND || 'http://localhost:3001';
+// CORREÇÃO: No frontend (Vite), as variáveis de ambiente devem ser acessadas com `import.meta.env`
+// e prefixadas com VITE_ por segurança. Usamos um nome padrão (VITE_BACKEND_URL) e um fallback para o ambiente local.
+const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 
 const planPreferences: { [key: string]: string[] } = {

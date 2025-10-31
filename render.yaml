@@ -1,1 +1,11 @@
-full contents of render.yaml
+services:
+  - type: web
+    name: boloflix-backend
+    env: node
+    plan: free
+    # Explicitly sets the root directory for this service.
+    # This ensures Render only looks inside the Backend folder.
+    rootDir: Backend
+    buildCommand: 'npm install'
+    startCommand: 'npm start'
+    healthCheckPath: /
