@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { QuizAnswers, CakeCreation } from '../types';
 
 // CORREÇÃO: No frontend (Vite), as variáveis de ambiente devem ser acessadas com `import.meta.env`
@@ -145,20 +145,29 @@ export const generateCakeOfTheMonth = async (): Promise<{ cakeDetails: any; imag
     });
     const cakeDetails = JSON.parse(detailsResponse.text);
 
-    // 2. Generate Cake Image
+    // 2. Generate Cake Image using a free model
     const imagePrompt = `Fotografia de comida de um bolo de fubá caseiro com pedaços de goiabada derretida por cima, muito apetitoso. O bolo está em uma louça de cerâmica vintage, sobre uma toalha de mesa xadrez em uma cozinha rústica e ensolarada. Estilo de fotografia acolhedor e nostálgico, com foco suave no fundo.`;
     
-    const imageResponse = await ai.models.generateImages({
-        model: 'imagen-4.0-generate-001',
-        prompt: imagePrompt,
+    const imageResponse = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: { parts: [{ text: imagePrompt }] },
         config: {
-          numberOfImages: 1,
-          aspectRatio: '4:3',
+            responseModalities: [Modality.IMAGE],
         },
     });
 
-    const base64ImageBytes = imageResponse.generatedImages[0].image.imageBytes;
-    const imageUrl = `data:image/jpeg;base64,${base64ImageBytes}`;
+    let imageUrl = '';
+    for (const part of imageResponse.candidates[0].content.parts) {
+        if (part.inlineData) {
+            const base64ImageBytes: string = part.inlineData.data;
+            imageUrl = `data:image/png;base64,${base64ImageBytes}`;
+            break; 
+        }
+    }
+    
+    if (!imageUrl) {
+        throw new Error("Não foi possível gerar a imagem do bolo a partir da resposta da API.");
+    }
     
     return { cakeDetails, imageUrl };
 
