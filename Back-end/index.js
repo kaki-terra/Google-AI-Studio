@@ -254,12 +254,31 @@ app.post('/subscribe', async (req, res) => {
 
         if (error) throw error;
         
+        // Envio de email de notificação
         if (resend && NOTIFICATION_EMAIL) {
+            const emailHtml = `
+              <div style="font-family: sans-serif; line-height: 1.6;">
+                <h1 style="color: #8D6E63;">🎉 Novo Pedido na BoloFlix!</h1>
+                <p>Um novo cliente acaba de assinar um plano. Prepare o forno!</p>
+                <hr style="border: none; border-top: 1px solid #eee;">
+                <h2 style="color: #5D4037;">Detalhes do Pedido</h2>
+                <ul style="list-style-type: none; padding: 0;">
+                  <li><strong>Nome do Cliente:</strong> ${data.customer_name}</li>
+                  <li><strong>Plano:</strong> ${data.plan_title} (R$ ${data.plan_price},00)</li>
+                  <li><strong>Preferência:</strong> ${data.flavor_preference}</li>
+                  <li><strong>Entrega:</strong> ${data.delivery_day}, ${data.delivery_time}</li>
+                  <li><strong>Data do Pedido:</strong> ${new Date(data.created_at).toLocaleDateString('pt-BR')}</li>
+                </ul>
+                <hr style="border: none; border-top: 1px solid #eee;">
+                <p style="font-size: 0.9em; color: #777;">Para gerenciar este e outros pedidos, acesse o seu <a href="https://boloflix.vercel.app/admin">Painel de Administrador</a>.</p>
+              </div>
+            `;
+
             resend.emails.send({
                 from: 'BoloFlix <onboarding@resend.dev>',
                 to: NOTIFICATION_EMAIL,
-                subject: '🎉 Novo Pedido na BoloFlix!',
-                html: `<h1>Novo Pedido!</h1><p><strong>Nome:</strong> ${data.customer_name}</p><p><strong>Plano:</strong> ${data.plan_title} (R$ ${data.plan_price})</p>`
+                subject: `🎉 Novo Pedido: ${data.plan_title} para ${data.customer_name}`,
+                html: emailHtml
             }).catch(console.error); // Usamos .catch para não quebrar o fluxo principal se o email falhar
         }
 
