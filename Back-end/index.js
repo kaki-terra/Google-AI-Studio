@@ -16,8 +16,14 @@ const resendApiKey = process.env.RESEND_API_KEY;
 const adminPassword = process.env.ADMIN_PASSWORD;
 const notificationEmail = process.env.NOTIFICATION_EMAIL;
 
-if (!supabaseUrl || !supabaseKey || !geminiApiKey || !resendApiKey || !adminPassword || !notificationEmail) {
-  console.error('ERRO: Variáveis de ambiente faltando. Verifique SUPABASE_URL, SUPABASE_KEY, GEMINI_API_KEY, RESEND_API_KEY, ADMIN_PASSWORD, NOTIFICATION_EMAIL.');
+// Verificação robusta de variáveis de ambiente na inicialização
+const requiredEnvVars = { supabaseUrl, supabaseKey, geminiApiKey, resendApiKey, adminPassword, notificationEmail };
+const missingVars = Object.entries(requiredEnvVars)
+  .filter(([, value]) => !value)
+  .map(([key]) => key.toUpperCase());
+
+if (missingVars.length > 0) {
+  console.error(`ERRO: Variáveis de ambiente faltando. Verifique ${missingVars.join(', ')}.`);
   process.exit(1); // Encerra o processo se houver erro crítico
 }
 
