@@ -1,225 +1,184 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import EditSubscriptionModal from './EditSubscriptionModal';
 
 const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
-// Lazy load o modal de edição
-const EditSubscriptionModal = lazy(() => import('./EditSubscriptionModal'));
-
+// This interface is also used by EditSubscriptionModal
 export interface Subscription {
   id: number;
+  created_at: string;
   customer_name: string;
   plan_title: string;
   plan_price: number;
   flavor_preference: string;
   delivery_day: string;
   delivery_time: string;
-  created_at: string;
 }
 
 const AdminPage: React.FC = () => {
+  const { user, loading: authLoading, signOut } = useAuth();
+  const navigate = useNavigate();
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  
-  // Estado para o modal de edição
   const [editingSubscription, setEditingSubscription] = useState<Subscription | null>(null);
 
   useEffect(() => {
-    const CORRECT_PASSWORD = 'bolo';
-    const password = prompt("Digite a senha de administrador para acessar esta página:");
-
-    if (password === CORRECT_PASSWORD) {
-      setIsAuthenticated(true);
-    } else {
-      alert("Senha incorreta. Redirecionando para a página inicial.");
-      window.location.href = '/';
+    if (!authLoading && !user) {
+      navigate('/'); // Redirect to home if not authenticated
     }
-  }, []);
-  
-  const handleDelete = async (id: number) => {
-    if (!window.confirm("Você tem certeza que deseja deletar esta assinatura? Esta ação não pode ser desfeita.")) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_URL}/subscriptions/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Falha ao deletar a assinatura.');
-      }
-      setSubscriptions(prev => prev.filter(sub => sub.id !== id));
-    } catch (err: any) {
-      setError(err.message || 'Ocorreu um erro ao tentar deletar a assinatura.');
-    }
-  };
-  
-  const handleOpenEditModal = (subscription: Subscription) => {
-    setEditingSubscription(subscription);
-  };
-
-  const handleCloseEditModal = () => {
-    setEditingSubscription(null);
-  };
-
-  const handleUpdateSubscription = (updatedSub: Subscription) => {
-    setSubscriptions(prevSubs => 
-      prevSubs.map(sub => sub.id === updatedSub.id ? updatedSub : sub)
-    );
-    handleCloseEditModal();
-  };
-
+  }, [user, authLoading, navigate]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-
     const fetchSubscriptions = async () => {
-      try {
+      if (user) {
         setLoading(true);
         setError(null);
-        const response = await fetch(`${API_URL}/subscriptions`);
-        if (!response.ok) {
-          throw new Error("Falha ao buscar as assinaturas. A 'cozinha' (backend) pode estar 'acordando'. Tente recarregar em um minuto.");
+        try {
+          const response = await fetch(`${API_URL}/subscriptions`);
+          if (!response.ok) {
+            throw new Error('Falha ao buscar as assinaturas.');
+          }
+          const data = await response.json();
+          setSubscriptions(data || []); // Assuming the endpoint returns an array
+        } catch (err: any) {
+          setError(err.message || 'Ocorreu um erro desconhecido.');
+        } finally {
+          setLoading(false);
         }
-        const data = await response.json();
-        setSubscriptions(data);
-      } catch (err: any) {
-        setError(err.message || 'Ocorreu um erro ao carregar os dados.');
-      } finally {
-        setLoading(false);
       }
     };
 
-    fetchSubscriptions();
-  }, [isAuthenticated]);
+    if (!authLoading) {
+        fetchSubscriptions();
+    }
+  }, [user, authLoading]);
 
-  if (!isAuthenticated) {
+  const handleEdit = (subscription: Subscription) => {
+    setEditingSubscription(subscription);
+  };
+
+  const handleCloseModal = () => {
+    setEditingSubscription(null);
+  };
+
+  const handleSave = (updatedSubscription: Subscription) => {
+    setSubscriptions(prev =>
+      prev.map(sub => (sub.id === updatedSubscription.id ? updatedSubscription : sub))
+    );
+    handleCloseModal();
+  };
+
+  const handleDelete = async (id: number) => {
+    if (window.confirm('Tem certeza que deseja excluir esta assinatura?')) {
+      try {
+        const response = await fetch(`${API_URL}/subscriptions/${id}`, {
+          method: 'DELETE',
+        });
+        if (!response.ok) {
+          throw new Error('Falha ao excluir a assinatura.');
+        }
+        setSubscriptions(prev => prev.filter(sub => sub.id !== id));
+      } catch (err: any) {
+        setError(err.message || 'Ocorreu um erro ao excluir.');
+      }
+    }
+  };
+
+  if (authLoading) {
     return (
-        <div className="bg-[#FFF9F2] min-h-screen flex justify-center items-center">
-            <p className="text-[#8D6E63]">Verificando acesso...</p>
-        </div>
+      <div className="flex justify-center items-center h-screen bg-[#FFF9F2]">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#D99A9A]"></div>
+      </div>
     );
   }
 
+  const getUsername = () => {
+    if(!user) return '';
+    return user.email?.split('@')[0] || 'Admin';
+  }
+
   return (
-    <>
-      <div className="bg-[#FFF9F2] min-h-screen text-[#5D4037] p-4 sm:p-6 lg:p-8">
-        <div className="max-w-7xl mx-auto">
-          <header className="mb-8 flex justify-between items-center">
+    <div className="min-h-screen bg-[#FFF9F2] text-[#5D4037]">
+      <header className="bg-white shadow-md">
+        <div className="container mx-auto px-6 py-4 flex justify-between items-center">
             <div>
-              <h1 className="text-4xl font-brand text-[#D99A9A]">BoloFlix</h1>
-              <h2 className="text-2xl font-bold text-[#8D6E63]">Painel de Assinaturas</h2>
+                <h1 className="text-2xl font-bold text-[#8D6E63]">Painel Administrativo</h1>
+                <p className="text-sm text-gray-500">BoloFlix</p>
             </div>
-            <a href="/" className="bg-[#E5B8B8] text-white px-4 py-2 rounded-full hover:bg-[#D99A9A] transition-colors shadow-sm">
-              Voltar para o site
-            </a>
-          </header>
+            <div className="flex items-center space-x-4">
+                <span className="text-sm">Olá, <span className="font-semibold capitalize">{getUsername()}</span>!</span>
+                <button
+                    onClick={signOut}
+                    className="bg-gray-200 text-gray-700 px-4 py-2 rounded-full hover:bg-gray-300 transition-colors text-sm"
+                >
+                    Sair
+                </button>
+            </div>
+        </div>
+      </header>
+      
+      <main className="container mx-auto px-6 py-8">
+        <h2 className="text-3xl font-bold mb-6">Gerenciar Assinaturas</h2>
+        
+        {loading && (
+          <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#D99A9A]"></div>
+          </div>
+        )}
 
-          <div className="bg-white rounded-2xl shadow-xl p-6 overflow-x-auto">
-            {loading && (
-              <div className="text-center py-20">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-[#D99A9A] mx-auto"></div>
-                <p className="mt-4 text-lg text-[#8D6E63]">Acordando a agenda de pedidos...</p>
-                <p className="text-sm text-gray-500">Isso pode levar até um minuto na primeira vez. Obrigado pela paciência!</p>
-              </div>
-            )}
+        {error && !loading && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">{error}</div>}
 
-            {error && (
-              <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4" role="alert">
-                <p className="font-bold">Ocorreu um erro</p>
-                <p>{error}</p>
-              </div>
-            )}
-
-            {!loading && !error && subscriptions.length === 0 && (
-              <div className="text-center py-20">
-                <p className="text-xl text-gray-500">Nenhuma assinatura registrada ainda.</p>
-                <p className="text-md text-gray-400 mt-2">Os novos pedidos aparecerão aqui!</p>
-              </div>
-            )}
-
-            {!loading && !error && subscriptions.length > 0 && (
-              <table className="min-w-full divide-y divide-pink-100">
-                <thead className="bg-[#FFF9F2]">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-[#8D6E63] uppercase tracking-wider">
-                      Cliente
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-[#8D6E63] uppercase tracking-wider">
-                      Plano
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-[#8D6E63] uppercase tracking-wider">
-                      Preferência
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-[#8D6E63] uppercase tracking-wider">
-                      Entrega
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-[#8D6E63] uppercase tracking-wider">
-                      Data do Pedido
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-[#8D6E63] uppercase tracking-wider">
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {subscriptions.map((sub) => (
-                    <tr key={sub.id} className="hover:bg-pink-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{sub.customer_name}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{sub.plan_title}</div>
-                        <div className="text-sm text-gray-500">R$ {sub.plan_price},00</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {sub.flavor_preference || 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {sub.delivery_day}, {sub.delivery_time}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(sub.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-4">
-                        <button 
-                          onClick={() => handleOpenEditModal(sub)}
-                          className="text-indigo-600 hover:text-indigo-900 hover:underline"
-                        >
-                          Editar
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(sub.id)}
-                          className="text-red-600 hover:text-red-900 hover:underline"
-                        >
-                          Deletar
-                        </button>
+        {!loading && !error && (
+          <div className="bg-white rounded-2xl shadow-xl overflow-x-auto">
+            <table className="w-full text-sm text-left text-gray-500">
+              <thead className="text-xs text-[#8D6E63] uppercase bg-[#FFF9F2]">
+                <tr>
+                  <th scope="col" className="px-6 py-3">Cliente</th>
+                  <th scope="col" className="px-6 py-3">Plano</th>
+                  <th scope="col" className="px-6 py-3">Entrega</th>
+                  <th scope="col" className="px-6 py-3">Preferências</th>
+                  <th scope="col" className="px-6 py-3">Data do Pedido</th>
+                  <th scope="col" className="px-6 py-3"><span className="sr-only">Ações</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {subscriptions.length > 0 ? (
+                  subscriptions.map(sub => (
+                    <tr key={sub.id} className="bg-white border-b hover:bg-pink-50">
+                      <th scope="row" className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">{sub.customer_name}</th>
+                      <td className="px-6 py-4">{sub.plan_title} (R${sub.plan_price})</td>
+                      <td className="px-6 py-4">{sub.delivery_day}, {sub.delivery_time}</td>
+                      <td className="px-6 py-4">{sub.flavor_preference || '-'}</td>
+                      <td className="px-6 py-4">{new Date(sub.created_at).toLocaleDateString('pt-BR')}</td>
+                      <td className="px-6 py-4 text-right space-x-2">
+                        <button onClick={() => handleEdit(sub)} className="font-medium text-[#D99A9A] hover:underline">Editar</button>
+                        <button onClick={() => handleDelete(sub.id)} className="font-medium text-red-600 hover:underline">Excluir</button>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="text-center py-8">Nenhuma assinatura encontrada.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-          <footer className="text-center mt-8 text-sm text-gray-400">
-              <p>&copy; {new Date().getFullYear()} Painel de Controle BoloFlix.</p>
-          </footer>
-        </div>
-      </div>
+        )}
+      </main>
 
       {editingSubscription && (
-        <Suspense fallback={<div className="fixed inset-0 bg-black bg-opacity-50 z-50" />}>
-          <EditSubscriptionModal
-            isOpen={!!editingSubscription}
-            onClose={handleCloseEditModal}
-            subscription={editingSubscription}
-            onSave={handleUpdateSubscription}
-          />
-        </Suspense>
+        <EditSubscriptionModal
+          isOpen={!!editingSubscription}
+          onClose={handleCloseModal}
+          subscription={editingSubscription}
+          onSave={handleSave}
+        />
       )}
-    </>
+    </div>
   );
 };
 
