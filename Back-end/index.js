@@ -278,7 +278,7 @@ app.get('/subscriptions', async (req, res) => {
   }
 });
 
-// NOVO: Endpoint para DELETAR uma assinatura
+// Endpoint para DELETAR uma assinatura
 app.delete('/subscriptions/:id', async (req, res) => {
   const { id } = req.params;
 
@@ -300,6 +300,41 @@ app.delete('/subscriptions/:id', async (req, res) => {
     console.error(`Erro inesperado no servidor (DELETE /subscriptions/${id}):`, err);
     res.status(500).json({ message: 'Ocorreu um erro inesperado no servidor.' });
   }
+});
+
+// NOVO: Endpoint para ATUALIZAR uma assinatura
+app.put('/subscriptions/:id', async (req, res) => {
+    const { id } = req.params;
+    const updatedData = req.body;
+
+    // Simples validação para garantir que temos dados para atualizar
+    if (!updatedData || Object.keys(updatedData).length === 0) {
+        return res.status(400).json({ message: 'Nenhum dado fornecido para atualização.' });
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('subscriptions')
+            .update(updatedData)
+            .match({ id: id })
+            .select(); // Retorna os dados atualizados
+
+        if (error) {
+            console.error('Erro ao atualizar no Supabase:', error);
+            return res.status(500).json({ message: 'Erro ao atualizar assinatura.', error: error.message });
+        }
+
+        if (!data || data.length === 0) {
+            return res.status(404).json({ message: 'Assinatura não encontrada.' });
+        }
+        
+        console.log(`✅ Assinatura com ID ${id} atualizada com sucesso.`);
+        res.status(200).json({ message: 'Assinatura atualizada com sucesso!', data: data[0] });
+
+    } catch (err) {
+        console.error(`Erro inesperado no servidor (PUT /subscriptions/${id}):`, err);
+        res.status(500).json({ message: 'Ocorreu um erro inesperado no servidor.' });
+    }
 });
 
 
