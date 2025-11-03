@@ -13,7 +13,10 @@
     "react-dom": "^19.2.0",
     "react-router-dom": "^6.26.0",
     "@google/genai": "^1.27.0",
-    "@supabase/supabase-js": "^2.44.4"
+    "@supabase/supabase-js": "^2.44.4",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "resend": "^6.4.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
