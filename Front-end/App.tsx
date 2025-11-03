@@ -4,6 +4,7 @@ import Header from './components/Header';
 import HeroSection from './components/HeroSection';
 import LazyLoadWrapper from './components/LazyLoadWrapper';
 import SectionPlaceholder from './components/SectionPlaceholder';
+import { AuthProvider } from './contexts/AuthContext';
 import { Plan } from './types';
 
 // --- Lazy load components ---
@@ -18,15 +19,20 @@ const Footer = lazy(() => import('./components/Footer'));
 const OnboardingModal = lazy(() => import('./components/OnboardingModal'));
 const CheckoutModal = lazy(() => import('./components/CheckoutModal'));
 const AdminPage = lazy(() => import('./components/AdminPage'));
+const AuthModal = lazy(() => import('./components/AuthModal'));
 
 const MainLayout: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [activeSection, setActiveSection] = useState('');
+  const [authModal, setAuthModal] = useState<{isOpen: boolean, view: 'login' | 'sign_up'}>({isOpen: false, view: 'login'});
 
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
+  
+  const handleOpenAuthModal = (view: 'login' | 'sign_up') => setAuthModal({isOpen: true, view});
+  const handleCloseAuthModal = () => setAuthModal({isOpen: false, view: 'login'});
 
   const handleOpenCheckout = (plan: Plan) => {
     setSelectedPlan(plan);
@@ -46,10 +52,9 @@ const MainLayout: React.FC = () => {
         const section = document.getElementById(id);
         if (section) {
           const rect = section.getBoundingClientRect();
-          // Adjust the trigger point to be closer to the top of the viewport
           if (rect.top <= 100 && rect.bottom >= 100) {
             currentSection = id;
-            break; // Found the active section, no need to check further
+            break;
           }
         }
       }
@@ -67,7 +72,12 @@ const MainLayout: React.FC = () => {
 
   return (
     <div className="bg-[#FFF9F2] min-h-screen text-[#5D4037]">
-      <Header onOpenModal={handleOpenModal} activeSection={activeSection} />
+      <Header 
+        onOpenModal={handleOpenModal} 
+        activeSection={activeSection}
+        onLogin={() => handleOpenAuthModal('login')}
+        onSignUp={() => handleOpenAuthModal('sign_up')}
+      />
       <main>
         <HeroSection onOpenModal={handleOpenModal} />
         
@@ -129,6 +139,16 @@ const MainLayout: React.FC = () => {
           <CheckoutModal isOpen={isCheckoutOpen} onClose={handleCloseCheckout} plan={selectedPlan} />
         </Suspense>
       )}
+
+      {authModal.isOpen && (
+        <Suspense fallback={<div className="fixed inset-0 bg-black bg-opacity-50 z-50" />}>
+          <AuthModal 
+            isOpen={authModal.isOpen} 
+            onClose={handleCloseAuthModal} 
+            initialView={authModal.view}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };
@@ -137,12 +157,14 @@ const MainLayout: React.FC = () => {
 const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <Suspense fallback={<div className="w-full h-screen bg-[#FFF9F2]" />}>
-        <Routes>
-          <Route path="/" element={<MainLayout />} />
-          <Route path="/admin" element={<AdminPage />} />
-        </Routes>
-      </Suspense>
+      <AuthProvider>
+        <Suspense fallback={<div className="w-full h-screen bg-[#FFF9F2]" />}>
+          <Routes>
+            <Route path="/" element={<MainLayout />} />
+            <Route path="/admin" element={<AdminPage />} />
+          </Routes>
+        </Suspense>
+      </AuthProvider>
     </BrowserRouter>
   );
 };

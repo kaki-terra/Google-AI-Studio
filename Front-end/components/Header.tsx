@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface NavLinkProps {
   href: string;
@@ -44,10 +45,13 @@ const NavLink: React.FC<NavLinkProps> = ({ href, activeSection, children, onLink
 interface HeaderProps {
   onOpenModal: () => void;
   activeSection: string;
+  onLogin: () => void;
+  onSignUp: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onOpenModal, activeSection }) => {
+const Header: React.FC<HeaderProps> = ({ onOpenModal, activeSection, onLogin, onSignUp }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
 
   const navLinks = [
     { href: '#como-funciona', label: 'Como Funciona' },
@@ -59,6 +63,16 @@ const Header: React.FC<HeaderProps> = ({ onOpenModal, activeSection }) => {
   const handleOpenModalAndCloseMenu = () => {
     onOpenModal();
     setIsMobileMenuOpen(false);
+  }
+
+  const handleSignOut = async () => {
+    await signOut();
+    setIsMobileMenuOpen(false);
+  }
+  
+  const getUsername = () => {
+    if(!user) return '';
+    return user.email?.split('@')[0] || 'Cliente';
   }
 
   return (
@@ -77,13 +91,33 @@ const Header: React.FC<HeaderProps> = ({ onOpenModal, activeSection }) => {
             <NavLink key={link.href} href={link.href} activeSection={activeSection}>{link.label}</NavLink>
           ))}
         </nav>
-        <button
-          onClick={onOpenModal}
-          className="hidden md:block bg-[#E5B8B8] text-white px-6 py-2 rounded-full hover:bg-[#D99A9A] transition-transform hover:scale-105 shadow-sm"
-          aria-label="Iniciar assinatura"
-        >
-          Assine Agora
-        </button>
+        
+        <div className="hidden md:flex items-center space-x-4">
+          {user ? (
+            <>
+              <span className="text-sm text-gray-700">Olá, <span className="font-semibold capitalize">{getUsername()}</span>!</span>
+              <button
+                onClick={handleSignOut}
+                className="bg-gray-200 text-gray-700 px-4 py-2 rounded-full hover:bg-gray-300 transition-colors text-sm"
+              >
+                Sair
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={onLogin} className="text-gray-600 hover:text-[#BF8B8B] transition-colors font-medium">
+                Login
+              </button>
+              <button
+                onClick={onSignUp}
+                className="bg-[#E5B8B8] text-white px-6 py-2 rounded-full hover:bg-[#D99A9A] transition-transform hover:scale-105 shadow-sm"
+                aria-label="Iniciar assinatura"
+              >
+                Cadastre-se
+              </button>
+            </>
+          )}
+        </div>
 
         {/* Mobile Menu Button */}
         <div className="md:hidden">
@@ -119,13 +153,32 @@ const Header: React.FC<HeaderProps> = ({ onOpenModal, activeSection }) => {
               {link.label}
             </NavLink>
           ))}
-          <button
-            onClick={handleOpenModalAndCloseMenu}
-            className="bg-[#E5B8B8] text-white px-8 py-3 mt-4 rounded-full hover:bg-[#D99A9A] transition-transform hover:scale-105 shadow-sm text-lg"
-            aria-label="Iniciar assinatura"
-          >
-            Assine Agora
-          </button>
+          <div className="mt-6 flex flex-col items-center w-full px-8">
+            {user ? (
+               <>
+                <span className="text-md text-gray-700 mb-4">Olá, <span className="font-semibold capitalize">{getUsername()}</span>!</span>
+                <button
+                  onClick={handleSignOut}
+                  className="w-full bg-gray-200 text-gray-700 px-8 py-3 rounded-full hover:bg-gray-300 transition-colors text-lg"
+                >
+                  Sair
+                </button>
+              </>
+            ) : (
+              <>
+                 <button
+                  onClick={() => { onSignUp(); setIsMobileMenuOpen(false); }}
+                  className="w-full bg-[#E5B8B8] text-white px-8 py-3 rounded-full hover:bg-[#D99A9A] transition-transform hover:scale-105 shadow-sm text-lg"
+                  aria-label="Iniciar assinatura"
+                >
+                  Cadastre-se
+                </button>
+                <button onClick={() => { onLogin(); setIsMobileMenuOpen(false); }} className="mt-4 text-gray-600 hover:text-[#BF8B8B] transition-colors font-medium text-lg">
+                  Já tenho conta (Login)
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
     </header>
