@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 const { GoogleGenAI, Type } = require('@google/genai');
+const { Resend } = require('resend');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -11,7 +12,6 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 if (!supabaseUrl || !supabaseKey) {
   console.error("ERRO: Variáveis de ambiente SUPABASE_URL e SUPABASE_KEY são obrigatórias.");
-  // process.exit(1); // Em produção, é bom parar o servidor se a config estiver faltando.
 }
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -19,10 +19,16 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const geminiApiKey = process.env.GEMINI_API_KEY;
 if (!geminiApiKey) {
     console.error("ERRO: Variável de ambiente GEMINI_API_KEY é obrigatória.");
-    // process.exit(1);
 }
 const ai = new GoogleGenAI({ apiKey: geminiApiKey });
 const model = ai.models;
+
+// --- Conexão com o Resend (Email) ---
+const resendApiKey = process.env.RESEND_API_KEY;
+if (!resendApiKey) {
+    console.warn("AVISO: RESEND_API_KEY não configurada. Notificações por email estão desabilitadas.");
+}
+const resend = new Resend(resendApiKey);
 
 
 // Middlewares
@@ -214,18 +220,10 @@ app.post('/custom-cake-description', async (req, res) => {
 
 app.post('/subscribe', async (req, res) => {
   console.log('🎉 Novo pedido de assinatura recebido!');
-  console.log('Dados do Pedido:', req.body);
-  
-  const { 
-    customerName, 
-    planTitle, 
-    planPrice, 
-    flavorPreference, 
-    deliveryDay, 
-    deliveryTime 
-  } = req.body;
+  const subscriptionData = req.body;
+  console.log('Dados do Pedido:', subscriptionData);
 
-  if (!customerName || !planTitle || !planPrice) {
+  if (!subscriptionData.customerName || !subscriptionData.planTitle || !subscriptionData.planPrice) {
     return res.status(400).json({ message: "Dados incompletos. Nome, plano e preço são obrigatórios." });
   }
 
@@ -234,12 +232,12 @@ app.post('/subscribe', async (req, res) => {
       .from('subscriptions')
       .insert([
         { 
-          customer_name: customerName, 
-          plan_title: planTitle, 
-          plan_price: parseInt(planPrice, 10),
-          flavor_preference: flavorPreference,
-          delivery_day: deliveryDay,
-          delivery_time: deliveryTime
+          customer_name: subscriptionData.customerName, 
+          plan_title: subscriptionData.planTitle, 
+          plan_price: parseInt(subscriptionData.planPrice, 10),
+          flavor_preference: subscriptionData.flavorPreference,
+          delivery_day: subscriptionData.deliveryDay,
+          delivery_time: subscriptionData.deliveryTime
         }
       ])
       .select();
@@ -250,6 +248,41 @@ app.post('/subscribe', async (req, res) => {
     }
 
     console.log('✅ Assinatura salva com sucesso no Supabase:', data);
+    
+    // --- LÓGICA DE ENVIO DE EMAIL ---
+    if (resendApiKey) {
+        try {
+            console.log('Enviando notificação por email...');
+            await resend.emails.send({
+              from: 'BoloFlix <onboarding@resend.dev>', // Endereço de envio de teste do Resend
+              to: ['quintaldoskitutes@gmail.com'], // Seu email para receber a notificação
+              subject: `🎉 Nova Assinatura BoloFlix: ${subscriptionData.planTitle}!`,
+              html: `
+                <div style="font-family: sans-serif; padding: 20px; color: #333;">
+                  <h1 style="color: #D99A9A;">Oba! Nova assinatura na BoloFlix!</h1>
+                  <p>Um novo cliente acaba de chegar. Prepare o forno!</p>
+                  <hr>
+                  <h2>Detalhes do Pedido:</h2>
+                  <ul>
+                    <li><strong>Cliente:</strong> ${subscriptionData.customerName}</li>
+                    <li><strong>Plano:</strong> ${subscriptionData.planTitle} (R$ ${subscriptionData.planPrice},00/mês)</li>
+                    <li><strong>Preferência:</strong> ${subscriptionData.flavorPreference || 'Não especificada'}</li>
+                    <li><strong>Entrega:</strong> ${subscriptionData.deliveryDay}, ${subscriptionData.deliveryTime}</li>
+                  </ul>
+                  <hr>
+                  <p>Acesse o <a href="https://boloflix.vercel.app/admin">Painel de Admin</a> para ver todos os pedidos.</p>
+                  <p style="font-size: 12px; color: #888;">Este é um email automático. Por favor, não responda.</p>
+                </div>
+              `,
+            });
+            console.log('✅ Email de notificação enviado com sucesso!');
+        } catch (emailError) {
+            // Se o email falhar, apenas logamos o erro, mas não quebramos a requisição.
+            console.error('❌ Falha ao enviar email de notificação:', emailError);
+        }
+    }
+    // --- FIM DA LÓGICA DE EMAIL ---
+
     res.status(200).json({ message: 'Assinatura registrada com sucesso!', data: data });
 
   } catch (err) {
@@ -302,12 +335,11 @@ app.delete('/subscriptions/:id', async (req, res) => {
   }
 });
 
-// NOVO: Endpoint para ATUALIZAR uma assinatura
+// Endpoint para ATUALIZAR uma assinatura
 app.put('/subscriptions/:id', async (req, res) => {
     const { id } = req.params;
     const updatedData = req.body;
 
-    // Simples validação para garantir que temos dados para atualizar
     if (!updatedData || Object.keys(updatedData).length === 0) {
         return res.status(400).json({ message: 'Nenhum dado fornecido para atualização.' });
     }
@@ -317,7 +349,7 @@ app.put('/subscriptions/:id', async (req, res) => {
             .from('subscriptions')
             .update(updatedData)
             .match({ id: id })
-            .select(); // Retorna os dados atualizados
+            .select();
 
         if (error) {
             console.error('Erro ao atualizar no Supabase:', error);
