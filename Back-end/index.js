@@ -227,10 +227,28 @@ app.post('/custom-cake-description', async (req, res) => {
 
 app.post('/subscribe', async (req, res) => {
     if (!supabase) return res.status(500).json({ message: 'Conexão com banco de dados não configurada.' });
+    
     try {
+        // Mapeia os dados do frontend (camelCase) para o banco de dados (snake_case)
+        const {
+            customerName,
+            planTitle,
+            planPrice,
+            flavorPreference,
+            deliveryDay,
+            deliveryTime
+        } = req.body;
+
         const { data, error } = await supabase
             .from('subscriptions')
-            .insert([req.body])
+            .insert([{
+                customer_name: customerName,
+                plan_title: planTitle,
+                plan_price: parseInt(planPrice, 10), // Garante que o preço seja um número
+                flavor_preference: flavorPreference,
+                delivery_day: deliveryDay,
+                delivery_time: deliveryTime
+            }])
             .select()
             .single();
 
@@ -242,7 +260,7 @@ app.post('/subscribe', async (req, res) => {
                 to: NOTIFICATION_EMAIL,
                 subject: '🎉 Novo Pedido na BoloFlix!',
                 html: `<h1>Novo Pedido!</h1><p><strong>Nome:</strong> ${data.customer_name}</p><p><strong>Plano:</strong> ${data.plan_title} (R$ ${data.plan_price})</p>`
-            }).catch(console.error);
+            }).catch(console.error); // Usamos .catch para não quebrar o fluxo principal se o email falhar
         }
 
         res.status(201).json({ message: 'Assinatura criada com sucesso!', data });
