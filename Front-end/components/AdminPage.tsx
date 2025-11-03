@@ -31,6 +31,29 @@ const AdminPage: React.FC = () => {
       window.location.href = '/';
     }
   }, []); // Executa apenas uma vez, na montagem do componente.
+  
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("Você tem certeza que deseja deletar esta assinatura? Esta ação não pode ser desfeita.")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/subscriptions/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Falha ao deletar a assinatura.');
+      }
+
+      // Remove a assinatura da lista localmente para atualizar a UI instantaneamente
+      setSubscriptions(prev => prev.filter(sub => sub.id !== id));
+
+    } catch (err: any) {
+      setError(err.message || 'Ocorreu um erro ao tentar deletar a assinatura.');
+    }
+  };
+
 
   useEffect(() => {
     if (!isAuthenticated) return; // Não busca os dados se não estiver autenticado
@@ -119,6 +142,9 @@ const AdminPage: React.FC = () => {
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-[#8D6E63] uppercase tracking-wider">
                     Data do Pedido
                   </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-[#8D6E63] uppercase tracking-wider">
+                    Ações
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -139,6 +165,14 @@ const AdminPage: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(sub.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                    </td>
+                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <button 
+                        onClick={() => handleDelete(sub.id)}
+                        className="text-red-600 hover:text-red-900 hover:underline"
+                      >
+                        Deletar
+                      </button>
                     </td>
                   </tr>
                 ))}

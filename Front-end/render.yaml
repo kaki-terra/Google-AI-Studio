@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: boloflix-backend
+    env: node
+    plan: free
+    # Explicitly sets the root directory for this service.
+    # This ensures Render only looks inside the Back-end folder.
+    rootDir: Back-end
+    buildCommand: 'npm install'
+    startCommand: 'npm start'
