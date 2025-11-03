@@ -98,13 +98,15 @@ const BusinessModelSection: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     
     const fetchCanvas = useCallback(async () => {
+        // Apenas busca o canvas se ele ainda não foi carregado
+        if (canvasContent) return;
+
         setLoading(true);
         setError(null);
         try {
-            // A API agora retorna o objeto JSON diretamente
-            const content = await generateBusinessModelCanvas();
-            // O serviço já faz o parse, então usamos o resultado diretamente
-            setCanvasContent(content as any);
+            const resultString = await generateBusinessModelCanvas();
+            const data = JSON.parse(resultString);
+            setCanvasContent(data);
         } catch (err) {
             const apiError = err as Error;
             setError(apiError.message || "Falha ao buscar dados da IA. Tente recarregar a página.");
@@ -112,18 +114,21 @@ const BusinessModelSection: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [canvasContent]);
 
     useEffect(() => {
-        fetchCanvas();
-    }, [fetchCanvas]);
+        // Carrega o canvas apenas quando a aba é selecionada pela primeira vez
+        if (activeTab === 'canvas') {
+            fetchCanvas();
+        }
+    }, [activeTab, fetchCanvas]);
 
     const TabButton: React.FC<{ tab: Tab; label: string }> = ({ tab, label }) => (
         <button
             onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 text-sm md:text-base font-semibold rounded-t-lg transition-colors ${
                 activeTab === tab 
-                ? 'bg-white text-[#D99A9A] border-b-2 border-[#D99A9A]' 
+                ? 'bg-white text-[#D99A9A] border-b-2 border-transparent' 
                 : 'bg-transparent text-gray-500 hover:bg-pink-50'
             }`}
         >
@@ -138,7 +143,7 @@ const BusinessModelSection: React.FC = () => {
             case 'canvas':
                  if (loading) return <LoadingSpinner />;
                  if (error) return <div className="text-red-500 text-center p-8">{error}</div>;
-                return canvasContent ? <CanvasDisplay data={canvasContent} /> : <p>Não foi possível exibir o Canvas.</p>;
+                return canvasContent ? <CanvasDisplay data={canvasContent} /> : <div className="text-center p-8">Não foi possível exibir o Canvas.</div>;
             case 'finance':
                 return <MarkdownRenderer content={staticFinanceContent} />;
             default:

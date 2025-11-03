@@ -239,18 +239,24 @@ app.get('/investor-pitch', async (req, res) => {
 });
 
 app.get('/business-model-canvas', async (req, res) => {
-    const prompt = "Gere um Business Model Canvas para a startup BoloFlix, uma Netflix de bolos caseiros por assinatura. Retorne um objeto JSON STRINGIFIED com as chaves: keyPartners, keyActivities, keyResources, valuePropositions, customerRelationships, channels, customerSegments, costStructure, revenueStreams.";
+    const prompt = "Gere um Business Model Canvas para a startup BoloFlix, uma Netflix de bolos caseiros por assinatura. Para cada uma das 9 seções (keyPartners, keyActivities, keyResources, valuePropositions, customerRelationships, channels, customerSegments, costStructure, revenueStreams), forneça uma lista de strings.";
     const schema = {
         type: Type.OBJECT,
         properties: {
-            canvasString: { type: Type.STRING, description: "Uma string JSON que representa o Business Model Canvas." }
+            keyPartners: { type: Type.ARRAY, items: { type: Type.STRING } },
+            keyActivities: { type: Type.ARRAY, items: { type: Type.STRING } },
+            keyResources: { type: Type.ARRAY, items: { type: Type.STRING } },
+            valuePropositions: { type: Type.ARRAY, items: { type: Type.STRING } },
+            customerRelationships: { type: Type.ARRAY, items: { type: Type.STRING } },
+            channels: { type: Type.ARRAY, items: { type: Type.STRING } },
+            customerSegments: { type: Type.ARRAY, items: { type: Type.STRING } },
+            costStructure: { type: Type.ARRAY, items: { type: Type.STRING } },
+            revenueStreams: { type: Type.ARRAY, items: { type: Type.STRING } },
         },
-        required: ["canvasString"]
+        required: ["keyPartners", "keyActivities", "keyResources", "valuePropositions", "customerRelationships", "channels", "customerSegments", "costStructure", "revenueStreams"],
     };
     try {
-        const result = await getModelResponse(prompt, schema);
-        // O Gemini agora retorna um objeto com canvasString, que parseamos para obter o objeto do canvas.
-        const canvasObject = JSON.parse(result.canvasString);
+        const canvasObject = await getModelResponse(prompt, schema);
         res.json({ canvas: canvasObject }); // Retornamos no formato que o frontend espera.
     } catch (error) {
         console.error("Erro ao processar Business Model Canvas:", error);
