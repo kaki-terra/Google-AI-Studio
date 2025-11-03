@@ -17,15 +17,31 @@ const AdminPage: React.FC = () => {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
+    // Para um projeto real, use um sistema de autenticação seguro!
+    const CORRECT_PASSWORD = 'bolo';
+    const password = prompt("Digite a senha de administrador para acessar esta página:");
+
+    if (password === CORRECT_PASSWORD) {
+      setIsAuthenticated(true);
+    } else {
+      alert("Senha incorreta. Redirecionando para a página inicial.");
+      window.location.href = '/';
+    }
+  }, []); // Executa apenas uma vez, na montagem do componente.
+
+  useEffect(() => {
+    if (!isAuthenticated) return; // Não busca os dados se não estiver autenticado
+
     const fetchSubscriptions = async () => {
       try {
         setLoading(true);
         setError(null);
         const response = await fetch(`${API_URL}/subscriptions`);
         if (!response.ok) {
-          throw new Error('Falha ao buscar as assinaturas do servidor.');
+          throw new Error("Falha ao buscar as assinaturas. A 'cozinha' (backend) pode estar 'acordando'. Tente recarregar em um minuto.");
         }
         const data = await response.json();
         setSubscriptions(data);
@@ -37,7 +53,16 @@ const AdminPage: React.FC = () => {
     };
 
     fetchSubscriptions();
-  }, []);
+  }, [isAuthenticated]); // Executa quando a autenticação for bem-sucedida
+
+  if (!isAuthenticated) {
+    // Mostra uma tela em branco ou de carregamento enquanto autentica
+    return (
+        <div className="bg-[#FFF9F2] min-h-screen flex justify-center items-center">
+            <p className="text-[#8D6E63]">Verificando acesso...</p>
+        </div>
+    );
+  }
 
   return (
     <div className="bg-[#FFF9F2] min-h-screen text-[#5D4037] p-4 sm:p-6 lg:p-8">
@@ -56,7 +81,8 @@ const AdminPage: React.FC = () => {
           {loading && (
             <div className="text-center py-20">
               <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-[#D99A9A] mx-auto"></div>
-              <p className="mt-4 text-lg">Carregando a agenda de pedidos...</p>
+              <p className="mt-4 text-lg text-[#8D6E63]">Acordando a agenda de pedidos...</p>
+              <p className="text-sm text-gray-500">Isso pode levar até um minuto na primeira vez. Obrigado pela paciência!</p>
             </div>
           )}
 
