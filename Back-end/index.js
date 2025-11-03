@@ -69,6 +69,7 @@ app.get('/', (req, res) => {
 // Rota para Assinatura (CREATE)
 app.post('/subscriptions', async (req, res) => {
   const {
+    userId, // ID do usuário autenticado
     customerName,
     customerEmail,
     planTitle,
@@ -78,8 +79,13 @@ app.post('/subscriptions', async (req, res) => {
     deliveryTime
   } = req.body;
 
+  if (!userId) {
+    return res.status(400).json({ message: 'ID do usuário é obrigatório.' });
+  }
+
   // Mapeamento para snake_case
   const subscriptionData = {
+    user_id: userId, // Vincula a assinatura ao usuário
     customer_name: customerName,
     customer_email: customerEmail,
     plan_title: planTitle,
@@ -128,6 +134,7 @@ app.post('/subscriptions', async (req, res) => {
 
   res.status(201).json(data);
 });
+
 
 // Rotas para Admin (READ, UPDATE, DELETE)
 app.get('/subscriptions', async (req, res) => {
@@ -232,34 +239,25 @@ app.get('/investor-pitch', async (req, res) => {
 });
 
 app.get('/business-model-canvas', async (req, res) => {
-    const prompt = "Gere um Business Model Canvas para a startup BoloFlix, uma Netflix de bolos caseiros por assinatura. Retorne um objeto JSON com as chaves: keyPartners, keyActivities, keyResources, valuePropositions, customerRelationships, channels, customerSegments, costStructure, revenueStreams.";
+    const prompt = "Gere um Business Model Canvas para a startup BoloFlix, uma Netflix de bolos caseiros por assinatura. Retorne um objeto JSON STRINGIFIED com as chaves: keyPartners, keyActivities, keyResources, valuePropositions, customerRelationships, channels, customerSegments, costStructure, revenueStreams.";
     const schema = {
         type: Type.OBJECT,
         properties: {
-            canvas: { 
-                type: Type.OBJECT,
-                properties: {
-                    keyPartners: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    keyActivities: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    keyResources: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    valuePropositions: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    customerRelationships: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    channels: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    customerSegments: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    costStructure: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    revenueStreams: { type: Type.ARRAY, items: { type: Type.STRING } },
-                }
-            }
+            canvasString: { type: Type.STRING, description: "Uma string JSON que representa o Business Model Canvas." }
         },
-        required: ["canvas"]
+        required: ["canvasString"]
     };
     try {
-        const response = await getModelResponse(prompt, schema);
-        res.json(response);
+        const result = await getModelResponse(prompt, schema);
+        // O Gemini agora retorna um objeto com canvasString, que parseamos para obter o objeto do canvas.
+        const canvasObject = JSON.parse(result.canvasString);
+        res.json({ canvas: canvasObject }); // Retornamos no formato que o frontend espera.
     } catch (error) {
+        console.error("Erro ao processar Business Model Canvas:", error);
         res.status(500).json({ message: error.message });
     }
 });
+
 
 app.get('/financial-estimate', async (req, res) => {
     const prompt = "Gere uma estimativa financeira simplificada para o primeiro ano da BoloFlix, considerando 3 planos de assinatura (R$60, R$120, R$200) e custos operacionais. Apresente em markdown simples.";

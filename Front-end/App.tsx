@@ -4,7 +4,7 @@ import Header from './components/Header';
 import HeroSection from './components/HeroSection';
 import LazyLoadWrapper from './components/LazyLoadWrapper';
 import SectionPlaceholder from './components/SectionPlaceholder';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Plan } from './types';
 
 // --- Lazy load components ---
@@ -22,17 +22,28 @@ const AdminPage = lazy(() => import('./components/AdminPage'));
 const AuthModal = lazy(() => import('./components/AuthModal'));
 
 const MainLayout: React.FC = () => {
+  const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [activeSection, setActiveSection] = useState('');
   const [authModal, setAuthModal] = useState<{isOpen: boolean, view: 'login' | 'sign_up'}>({isOpen: false, view: 'login'});
+  const [postAuthAction, setPostAuthAction] = useState<(() => void) | null>(null);
+
 
   const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
   
-  const handleOpenAuthModal = (view: 'login' | 'sign_up') => setAuthModal({isOpen: true, view});
-  const handleCloseAuthModal = () => setAuthModal({isOpen: false, view: 'login'});
+  const handleOpenAuthModal = (view: 'login' | 'sign_up', onSucces?: () => void) => {
+    if(onSucces) {
+      setPostAuthAction(() => onSucces); // Armazena a ação a ser executada pós-login
+    }
+    setAuthModal({isOpen: true, view});
+  };
+  const handleCloseAuthModal = () => {
+    setAuthModal({isOpen: false, view: 'login'});
+    setPostAuthAction(null); // Limpa a ação se o modal for fechado
+  };
 
   const handleOpenCheckout = (plan: Plan) => {
     setSelectedPlan(plan);
@@ -41,6 +52,25 @@ const MainLayout: React.FC = () => {
   const handleCloseCheckout = () => {
     setIsCheckoutOpen(false);
     setSelectedPlan(null);
+  };
+  
+  // Lógica para executar a ação pós-autenticação
+  useEffect(() => {
+    if (user && postAuthAction) {
+      postAuthAction();
+      setPostAuthAction(null);
+    }
+  }, [user, postAuthAction]);
+
+
+  // Nova lógica de assinatura que verifica a autenticação
+  const handleSubscriptionAttempt = (plan: Plan) => {
+    if (user) {
+      handleOpenCheckout(plan);
+    } else {
+      // Abre o modal de cadastro e, em caso de sucesso, abre o checkout
+      handleOpenAuthModal('sign_up', () => handleOpenCheckout(plan));
+    }
   };
 
   useEffect(() => {
@@ -73,7 +103,6 @@ const MainLayout: React.FC = () => {
   return (
     <div className="bg-[#FFF9F2] min-h-screen text-[#5D4037]">
       <Header 
-        onOpenModal={handleOpenModal} 
         activeSection={activeSection}
         onLogin={() => handleOpenAuthModal('login')}
         onSignUp={() => handleOpenAuthModal('sign_up')}
@@ -89,7 +118,7 @@ const MainLayout: React.FC = () => {
         
         <div id="planos">
           <LazyLoadWrapper placeholder={<SectionPlaceholder className="h-[750px]" />}>
-            <PlansSection onSelectPlan={handleOpenCheckout} />
+            <PlansSection onSelectPlan={handleSubscriptionAttempt} />
           </LazyLoadWrapper>
         </div>
         

@@ -42,14 +42,14 @@ const NavLink: React.FC<NavLinkProps> = ({ href, activeSection, children, onLink
   );
 };
 
+// Fix: Removed unused `onOpenModal` prop to resolve compilation error in App.tsx.
 interface HeaderProps {
-  onOpenModal: () => void;
   activeSection: string;
   onLogin: () => void;
   onSignUp: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onOpenModal, activeSection, onLogin, onSignUp }) => {
+const Header: React.FC<HeaderProps> = ({ activeSection, onLogin, onSignUp }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, signOut } = useAuth();
 
@@ -59,11 +59,6 @@ const Header: React.FC<HeaderProps> = ({ onOpenModal, activeSection, onLogin, on
     { href: '#temas', label: 'Temas' },
     { href: '#negocio', label: 'O Negócio' },
   ];
-
-  const handleOpenModalAndCloseMenu = () => {
-    onOpenModal();
-    setIsMobileMenuOpen(false);
-  }
 
   const handleSignOut = async () => {
     await signOut();

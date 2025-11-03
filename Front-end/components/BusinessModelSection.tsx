@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { generateInvestorPitch, generateBusinessModelCanvas, generateFinancialEstimate } from '../services/geminiService';
+import { generateBusinessModelCanvas } from '../services/geminiService';
 import { BusinessModelCanvas } from '../types';
 
 type Tab = 'pitch' | 'canvas' | 'finance';
@@ -66,48 +66,57 @@ const CanvasDisplay: React.FC<{ data: BusinessModelCanvas }> = ({ data }) => {
     );
 };
 
+// --- Static Content ---
+const staticPitchContent = `BoloFlix é a sua confeitaria caseira por assinatura. Cansado dos mesmos doces industriais? Nós entregamos, semanalmente, um bolo fresquinho, com sabor de infância e feito com amor, diretamente na sua porta. Com temas mensais que surpreendem e resgatam memórias, transformamos o simples ato de comer bolo em uma experiência de carinho e descoberta. BoloFlix: o abraço que chega em uma caixa.`;
+
+const staticFinanceContent = `## Estimativa Financeira Simplificada (1º Ano)
+
+### Premissas:
+- **Mix de Clientes:** 40% no Plano Curioso, 50% no Apaixonado, 10% no Família.
+- **Custo por Bolo (CMV):** R$ 25 (incluindo ingredientes e embalagem).
+- **Custos Fixos Mensais:** R$ 2.000 (marketing inicial, plataforma, etc).
+
+### Projeção com 50 Assinantes:
+- **Receita Mensal:** (20 * R$60) + (25 * R$120) + (5 * R$200) = R$ 1.200 + R$ 3.000 + R$ 1.000 = **R$ 5.200**
+- **Custo Variável Mensal:** ((20*1) + (25*4) + (5*8)) * R$25 = 160 bolos * R$25 = **R$ 4.000**
+- **Lucro Bruto Mensal:** R$ 5.200 - R$ 4.000 = R$ 1.200
+- **Resultado Mensal:** R$ 1.200 - R$ 2.000 = **-R$ 800**
+
+### Projeção com 100 Assinantes:
+- **Receita Mensal:** (40 * R$60) + (50 * R$120) + (10 * R$200) = R$ 2.400 + R$ 6.000 + R$ 2.000 = **R$ 10.400**
+- **Custo Variável Mensal:** ((40*1) + (50*4) + (10*8)) * R$25 = 320 bolos * R$25 = **R$ 8.000**
+- **Lucro Bruto Mensal:** R$ 10.400 - R$ 8.000 = R$ 2.400
+- **Resultado Mensal:** R$ 2.400 - R$ 2.000 = **+R$ 400**
+
+**Conclusão:** O ponto de equilíbrio (break-even) do modelo é alcançado com aproximadamente 85-90 assinantes. O foco inicial deve ser a aquisição de clientes para garantir a sustentabilidade e, a partir daí, escalar o lucro otimizando custos.`;
+
+
 const BusinessModelSection: React.FC = () => {
     const [activeTab, setActiveTab] = useState<Tab>('pitch');
-    const [pitchContent, setPitchContent] = useState<string>('');
     const [canvasContent, setCanvasContent] = useState<BusinessModelCanvas | null>(null);
-    const [financeContent, setFinanceContent] = useState<string>('');
-    const [loading, setLoading] = useState<Record<Tab, boolean>>({ pitch: true, canvas: true, finance: true });
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     
-    const fetchData = useCallback(async (tab: Tab) => {
-        setLoading(prev => ({ ...prev, [tab]: true }));
+    const fetchCanvas = useCallback(async () => {
+        setLoading(true);
         setError(null);
         try {
-            if (tab === 'pitch') {
-                const content = await generateInvestorPitch();
-                setPitchContent(content);
-            } else if (tab === 'canvas') {
-                const content = await generateBusinessModelCanvas();
-                 try {
-                    const parsedContent = JSON.parse(content);
-                    setCanvasContent(parsedContent);
-                 } catch (e) {
-                     setError("Erro ao processar o formato do Canvas. O conteúdo pode ser inválido.");
-                     console.error("JSON parsing error:", e, "Content:", content);
-                 }
-            } else if (tab === 'finance') {
-                const content = await generateFinancialEstimate();
-                setFinanceContent(content);
-            }
+            // A API agora retorna o objeto JSON diretamente
+            const content = await generateBusinessModelCanvas();
+            // O serviço já faz o parse, então usamos o resultado diretamente
+            setCanvasContent(content as any);
         } catch (err) {
-            setError('Falha ao buscar dados da IA. Verifique sua chave de API e tente novamente.');
+            const apiError = err as Error;
+            setError(apiError.message || "Falha ao buscar dados da IA. Tente recarregar a página.");
             console.error(err);
         } finally {
-            setLoading(prev => ({ ...prev, [tab]: false }));
+            setLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        fetchData('pitch');
-        fetchData('canvas');
-        fetchData('finance');
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        fetchCanvas();
+    }, [fetchCanvas]);
 
     const TabButton: React.FC<{ tab: Tab; label: string }> = ({ tab, label }) => (
         <button
@@ -123,16 +132,15 @@ const BusinessModelSection: React.FC = () => {
     );
 
     const renderContent = () => {
-        if (loading[activeTab]) return <LoadingSpinner />;
-        if (error) return <div className="text-red-500 text-center p-8">{error}</div>;
-
         switch (activeTab) {
             case 'pitch':
-                return <MarkdownRenderer content={pitchContent} />;
+                return <MarkdownRenderer content={staticPitchContent} />;
             case 'canvas':
+                 if (loading) return <LoadingSpinner />;
+                 if (error) return <div className="text-red-500 text-center p-8">{error}</div>;
                 return canvasContent ? <CanvasDisplay data={canvasContent} /> : <p>Não foi possível exibir o Canvas.</p>;
             case 'finance':
-                return <MarkdownRenderer content={financeContent} />;
+                return <MarkdownRenderer content={staticFinanceContent} />;
             default:
                 return null;
         }

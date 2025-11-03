@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { Plan } from '../types';
+import { Plan, User } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+
 
 const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
@@ -13,9 +15,10 @@ interface CheckoutModalProps {
 type CheckoutStep = 'form' | 'loading' | 'success' | 'error';
 
 const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, plan }) => {
+  const { user } = useAuth(); // Pega o usuário logado
   const [step, setStep] = useState<CheckoutStep>('form');
   const [formData, setFormData] = useState({
-    customer_name: '',
+    customer_name: user?.email?.split('@')[0] || '',
     flavor_preference: '',
     delivery_day: 'Quarta-feira',
     delivery_time: 'Manhã (9h-12h)',
@@ -23,20 +26,32 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, plan }) 
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    // Reset state when modal is reopened
     if (isOpen) {
       setStep('form');
       setFormData({
-        customer_name: '',
+        customer_name: user?.email?.split('@')[0] || '',
         flavor_preference: '',
         delivery_day: 'Quarta-feira',
         delivery_time: 'Manhã (9h-12h)',
       });
       setErrorMessage('');
     }
-  }, [isOpen]);
+  }, [isOpen, user]);
 
   if (!isOpen) return null;
+  
+  if (!user) {
+    // Medida de segurança, embora o fluxo principal já deva prevenir isso.
+     return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4" onClick={onClose}>
+            <div className="bg-[#FFF9F2] rounded-2xl shadow-2xl w-full max-w-lg text-center p-8">
+                <h2 className="text-2xl font-bold text-red-500 mb-4">Erro de Autenticação</h2>
+                <p>Você precisa estar logado para fazer uma assinatura.</p>
+                 <button onClick={onClose} className="mt-6 bg-[#E5B8B8] text-white px-6 py-2 rounded-full">Fechar</button>
+            </div>
+        </div>
+     );
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -49,9 +64,14 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, plan }) 
     setErrorMessage('');
     try {
       const payload = {
-        ...formData,
-        plan_title: plan.title,
-        plan_price: parseInt(plan.price, 10),
+        userId: user.id,
+        customerName: formData.customer_name,
+        customerEmail: user.email,
+        planTitle: plan.title,
+        planPrice: parseInt(plan.price, 10),
+        flavorPreference: formData.flavor_preference,
+        deliveryDay: formData.delivery_day,
+        deliveryTime: formData.delivery_time,
       };
 
       const response = await fetch(`${API_URL}/subscriptions`, {
@@ -69,7 +89,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, plan }) 
 
     } catch (err: any) {
       console.error("Failed to create subscription", err);
-      setErrorMessage(err.message || "Oops! Tivemos um probleminha na cozinha. Por favor, tente novamente.");
+      setErrorMessage(err.message || "Erro interno ao salvar assinatura.");
       setStep('error');
     }
   };
@@ -88,7 +108,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, plan }) 
           <div className="text-center">
             <h2 className="text-3xl font-bold mb-4 text-[#8D6E63]">Tudo Certo! 🎉</h2>
             <p className="text-lg mb-4 text-gray-700">Sua assinatura do plano <span className="font-bold text-[#D99A9A]">{plan.title}</span> foi confirmada.</p>
-            <p className="text-gray-600">Prepare-se para receber um pedacinho de felicidade em sua casa. Entraremos em contato em breve com mais detalhes.</p>
+            <p className="text-gray-600">Enviamos um email de confirmação com todos os detalhes. Prepare-se para receber um pedacinho de felicidade em sua casa!</p>
             <button onClick={onClose} className="w-full mt-8 py-3 px-6 rounded-lg font-semibold text-white bg-[#E5B8B8] hover:bg-[#D99A9A] transition-colors">
               Fechar
             </button>
@@ -114,7 +134,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, plan }) 
             
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label htmlFor="customer_name" className="block text-sm font-medium text-[#5D4037]">Seu nome completo</label>
+                <label htmlFor="customer_name" className="block text-sm font-medium text-[#5D4037]">Seu nome (como gostaria de ser chamado)</label>
                 <input type="text" name="customer_name" id="customer_name" value={formData.customer_name} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#D99A9A] focus:border-[#D99A9A]" />
               </div>
               <div>

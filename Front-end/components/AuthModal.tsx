@@ -13,14 +13,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialView }) =
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const { signIn, signUp } = useAuth();
 
   useEffect(() => {
     setView(initialView);
-    // Reset form when view changes or modal opens
     setEmail('');
     setPassword('');
     setError(null);
+    setSuccessMessage(null);
   }, [initialView, isOpen]);
 
   if (!isOpen) {
@@ -31,20 +32,36 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialView }) =
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccessMessage(null);
 
-    const action = view === 'login' ? signIn : signUp;
-    const { error: authError } = await action(email, password);
-
-    setLoading(false);
-    if (authError) {
-      setError(authError.message);
-    } else {
-      onClose(); // Close modal on success
+    if (view === 'sign_up') {
+        const { error: authError } = await signUp(email, password);
+        setLoading(false);
+        if (authError) {
+            if (authError.message.includes('User already registered')) {
+                setError('Este email já está cadastrado. Por favor, tente fazer login.');
+            } else {
+                setError(authError.message);
+            }
+        } else {
+            setSuccessMessage('Cadastro realizado! Por favor, verifique seu email para confirmar sua conta.');
+            setView('login'); // Muda para a tela de login para conveniência
+        }
+    } else { // Login
+        const { error: authError } = await signIn(email, password);
+        setLoading(false);
+        if (authError) {
+            setError('Email ou senha inválidos.');
+        } else {
+            onClose(); // Fecha o modal no sucesso do login
+        }
     }
   };
 
   const toggleView = () => {
     setView(view === 'login' ? 'sign_up' : 'login');
+    setError(null);
+    setSuccessMessage(null);
   };
 
   return (
@@ -61,8 +78,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialView }) =
         </h2>
 
         {error && (
-            <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
+            <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 text-sm" role="alert">
                 <p>{error}</p>
+            </div>
+        )}
+        
+        {successMessage && !error && (
+             <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 text-sm" role="alert">
+                <p>{successMessage}</p>
             </div>
         )}
         
