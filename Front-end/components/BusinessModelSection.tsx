@@ -1,169 +1,117 @@
-
-
-import React, { useState, useEffect, useCallback } from 'react';
-import { generateBusinessModelCanvas } from '../services/geminiService';
+import React, { useState } from 'react';
+import { 
+    generateBusinessModelCanvas, 
+    generateFinancialEstimate, 
+    generateInvestorPitch 
+} from '../services/geminiService';
 import { BusinessModelCanvas } from '../types';
 
-type Tab = 'pitch' | 'canvas' | 'finance';
-
-const LoadingSpinner: React.FC = () => (
-    <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#D99A9A]"></div>
+const LoadingSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 }) => (
+    <div className="space-y-3 animate-pulse">
+        {[...Array(rows)].map((_, i) => (
+            <div key={i} className="h-4 bg-gray-200 rounded w-full"></div>
+        ))}
+        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
     </div>
 );
 
-const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
-    const renderContent = () => {
-        return content
-            .split('\n')
-            .map((line, index) => {
-                if (line.startsWith('### ')) {
-                    return <h3 key={index} className="text-xl font-semibold mt-4 mb-2 text-[#8D6E63]">{line.substring(4)}</h3>;
-                }
-                if (line.startsWith('## ')) {
-                    return <h2 key={index} className="text-2xl font-bold mt-6 mb-3 text-[#8D6E63]">{line.substring(3)}</h2>;
-                }
-                if (line.startsWith('# ')) {
-                    return <h1 key={index} className="text-3xl font-bold mt-8 mb-4 text-[#8D6E63]">{line.substring(2)}</h1>;
-                }
-                if (line.startsWith('* ')) {
-                    return <li key={index} className="ml-6 list-disc">{line.substring(2)}</li>;
-                }
-                 if (line.trim() === '') {
-                    return <br key={index} />;
-                }
-                return <p key={index} className="mb-2">{line}</p>;
-            });
-    };
-
-    return <div className="prose max-w-none text-left">{renderContent()}</div>;
-};
-
-const CanvasDisplay: React.FC<{ data: BusinessModelCanvas }> = ({ data }) => {
-    const sections: { title: string; items: string[] | undefined }[] = [
-        { title: 'Parceiros-Chave', items: data.keyPartners },
-        { title: 'Atividades-Chave', items: data.keyActivities },
-        { title: 'Recursos-Chave', items: data.keyResources },
-        { title: 'Propostas de Valor', items: data.valuePropositions },
-        { title: 'Relacionamento com Clientes', items: data.customerRelationships },
-        { title: 'Canais', items: data.channels },
-        { title: 'Segmentos de Clientes', items: data.customerSegments },
-        { title: 'Estrutura de Custos', items: data.costStructure },
-        { title: 'Fontes de Receita', items: data.revenueStreams },
-    ];
-
-    return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sections.map(section => (
-                <div key={section.title} className="bg-[#FFF9F2] p-4 rounded-lg border border-pink-200">
-                    <h3 className="font-bold text-lg mb-2 text-[#8D6E63]">{section.title}</h3>
-                    <ul className="list-disc list-inside text-sm space-y-1">
-                        {section.items?.map((item, index) => <li key={index}>{item}</li>)}
-                    </ul>
-                </div>
-            ))}
-        </div>
-    );
-};
-
-// --- Static Content ---
-const staticPitchContent = `BoloFlix é a sua confeitaria caseira por assinatura. Cansado dos mesmos doces industriais? Nós entregamos, semanalmente, um bolo fresquinho, com sabor de infância e feito com amor, diretamente na sua porta. Com temas mensais que surpreendem e resgatam memórias, transformamos o simples ato de comer bolo em uma experiência de carinho e descoberta. BoloFlix: o abraço que chega em uma caixa.`;
-
-const staticFinanceContent = `## Estimativa Financeira Simplificada (1º Ano)
-
-### Premissas:
-- **Mix de Clientes:** 40% no Plano Curioso, 50% no Apaixonado, 10% no Família.
-- **Custo por Bolo (CMV):** R$ 25 (incluindo ingredientes e embalagem).
-- **Custos Fixos Mensais:** R$ 2.000 (marketing inicial, plataforma, etc).
-
-### Projeção com 50 Assinantes:
-- **Receita Mensal:** (20 * R$60) + (25 * R$120) + (5 * R$200) = R$ 1.200 + R$ 3.000 + R$ 1.000 = **R$ 5.200**
-- **Custo Variável Mensal:** ((20*1) + (25*4) + (5*8)) * R$25 = 160 bolos * R$25 = **R$ 4.000**
-- **Lucro Bruto Mensal:** R$ 5.200 - R$ 4.000 = R$ 1.200
-- **Resultado Mensal:** R$ 1.200 - R$ 2.000 = **-R$ 800**
-
-### Projeção com 100 Assinantes:
-- **Receita Mensal:** (40 * R$60) + (50 * R$120) + (10 * R$200) = R$ 2.400 + R$ 6.000 + R$ 2.000 = **R$ 10.400**
-- **Custo Variável Mensal:** ((40*1) + (50*4) + (10*8)) * R$25 = 320 bolos * R$25 = **R$ 8.000**
-- **Lucro Bruto Mensal:** R$ 10.400 - R$ 8.000 = R$ 2.400
-- **Resultado Mensal:** R$ 2.400 - R$ 2.000 = **+R$ 400**
-
-**Conclusão:** O ponto de equilíbrio (break-even) do modelo é alcançado com aproximadamente 85-90 assinantes. O foco inicial deve ser a aquisição de clientes para garantir a sustentabilidade e, a partir daí, escalar o lucro otimizando custos.`;
-
+const CanvasBlock: React.FC<{ title: string; items: string[] }> = ({ title, items }) => (
+    <div className="bg-white p-4 rounded-lg shadow-sm border border-pink-100 h-full">
+        <h4 className="font-bold text-sm text-[#8D6E63] mb-2 border-b border-pink-200 pb-1">{title}</h4>
+        <ul className="text-xs text-gray-600 space-y-1">
+            {items.map((item, index) => <li key={index}>- {item}</li>)}
+        </ul>
+    </div>
+);
 
 const BusinessModelSection: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<Tab>('pitch');
-    const [canvasContent, setCanvasContent] = useState<BusinessModelCanvas | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    
-    const fetchCanvas = useCallback(async () => {
-        // Apenas busca o canvas se ele ainda não foi carregado
-        if (canvasContent) return;
+    const [pitch, setPitch] = useState<string>('');
+    const [canvas, setCanvas] = useState<BusinessModelCanvas | null>(null);
+    const [estimate, setEstimate] = useState<string>('');
+    const [loading, setLoading] = useState<Record<string, boolean>>({});
+    const [error, setError] = useState<Record<string, string | null>>({});
 
-        setLoading(true);
-        setError(null);
+    const handleGenerate = async (type: 'pitch' | 'canvas' | 'estimate') => {
+        setLoading(prev => ({ ...prev, [type]: true }));
+        setError(prev => ({ ...prev, [type]: null }));
+
         try {
-            const resultString = await generateBusinessModelCanvas();
-            const data = JSON.parse(resultString);
-            setCanvasContent(data);
-        } catch (err) {
-            const apiError = err as Error;
-            setError(apiError.message || "Falha ao buscar dados da IA. Tente recarregar a página.");
+            if (type === 'pitch') {
+                const result = await generateInvestorPitch();
+                setPitch(result);
+            } else if (type === 'canvas') {
+                const resultString = await generateBusinessModelCanvas();
+                setCanvas(JSON.parse(resultString));
+            } else if (type === 'estimate') {
+                const result = await generateFinancialEstimate();
+                setEstimate(result);
+            }
+        } catch (err: any) {
             console.error(err);
+            setError(prev => ({ ...prev, [type]: err.message || 'Falha ao gerar conteúdo.' }));
         } finally {
-            setLoading(false);
-        }
-    }, [canvasContent]);
-
-    useEffect(() => {
-        // Carrega o canvas apenas quando a aba é selecionada pela primeira vez
-        if (activeTab === 'canvas') {
-            fetchCanvas();
-        }
-    }, [activeTab, fetchCanvas]);
-
-    const TabButton: React.FC<{ tab: Tab; label: string }> = ({ tab, label }) => (
-        <button
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm md:text-base font-semibold rounded-t-lg transition-colors ${
-                activeTab === tab 
-                ? 'bg-white text-[#D99A9A] border-b-2 border-transparent' 
-                : 'bg-transparent text-gray-500 hover:bg-pink-50'
-            }`}
-        >
-            {label}
-        </button>
-    );
-
-    const renderContent = () => {
-        switch (activeTab) {
-            case 'pitch':
-                return <MarkdownRenderer content={staticPitchContent} />;
-            case 'canvas':
-                 if (loading) return <LoadingSpinner />;
-                 if (error) return <div className="text-red-500 text-center p-8">{error}</div>;
-                return canvasContent ? <CanvasDisplay data={canvasContent} /> : <div className="text-center p-8">Não foi possível exibir o Canvas.</div>;
-            case 'finance':
-                return <MarkdownRenderer content={staticFinanceContent} />;
-            default:
-                return null;
+            setLoading(prev => ({ ...prev, [type]: false }));
         }
     };
-
+    
     return (
         <section className="py-20 bg-[#FFF9F2]">
             <div className="container mx-auto px-6">
-                <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Materializando a ideia</h2>
-                <p className="text-lg text-center text-gray-600 mb-12 max-w-2xl mx-auto">Com a ajuda da IA, transformamos o conceito em um plano de negócio estruturado.</p>
-                <div className="max-w-4xl mx-auto">
-                    <div className="border-b border-gray-200 mb-6 flex justify-center space-x-2 md:space-x-4">
-                        <TabButton tab="pitch" label="Pitch de Apresentação" />
-                        <TabButton tab="canvas" label="Business Model Canvas" />
-                        <TabButton tab="finance" label="Estimativa Financeira" />
+                <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Por Dentro da BoloFlix</h2>
+                <p className="text-lg text-center text-gray-600 mb-12 max-w-2xl mx-auto">Gerado por IA, nosso modelo de negócio é tão delicioso quanto nossos bolos. Veja os detalhes!</p>
+
+                <div className="space-y-12">
+                    {/* Investor Pitch */}
+                    <div className="bg-white p-8 rounded-2xl shadow-xl">
+                        <h3 className="text-2xl font-bold text-[#8D6E63] mb-4">Elevator Pitch para Investidores</h3>
+                        {loading.pitch ? <LoadingSkeleton /> : error.pitch ? <p className="text-red-500">{error.pitch}</p> : (
+                            <p className="text-gray-600 whitespace-pre-line">{pitch || 'Clique no botão para gerar o pitch.'}</p>
+                        )}
+                        <button onClick={() => handleGenerate('pitch')} disabled={loading.pitch} className="mt-6 bg-[#E5B8B8] text-white px-6 py-2 rounded-full hover:bg-[#D99A9A] transition-colors disabled:bg-gray-300">
+                            {loading.pitch ? 'Gerando...' : 'Gerar Pitch'}
+                        </button>
                     </div>
-                    <div className="bg-white rounded-2xl shadow-xl p-6 md:p-10 min-h-[400px]">
-                        {renderContent()}
+
+                    {/* Business Model Canvas */}
+                    <div className="bg-white p-8 rounded-2xl shadow-xl">
+                        <h3 className="text-2xl font-bold text-[#8D6E63] mb-6">Business Model Canvas</h3>
+                         {loading.canvas ? <div className="text-center p-8"><LoadingSkeleton rows={10} /></div> : error.canvas ? <p className="text-red-500">{error.canvas}</p> : (
+                            canvas ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                    <div className="lg:col-span-1"><CanvasBlock title="Parceiros Chave" items={canvas.keyPartners} /></div>
+                                    <div className="lg:col-span-1 space-y-4">
+                                        <CanvasBlock title="Atividades Chave" items={canvas.keyActivities} />
+                                        <CanvasBlock title="Recursos Chave" items={canvas.keyResources} />
+                                    </div>
+                                    <div className="lg:col-span-1"><CanvasBlock title="Proposta de Valor" items={canvas.valuePropositions} /></div>
+                                    <div className="lg:col-span-1 space-y-4">
+                                        <CanvasBlock title="Relação com Clientes" items={canvas.customerRelationships} />
+                                        <CanvasBlock title="Canais" items={canvas.channels} />
+                                        <CanvasBlock title="Segmentos de Clientes" items={canvas.customerSegments} />
+                                    </div>
+                                    <div className="sm:col-span-2 md:col-span-3 lg:col-span-4 mt-4 pt-4 border-t-2 border-dashed border-pink-200 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                         <CanvasBlock title="Estrutura de Custos" items={canvas.costStructure} />
+                                         <CanvasBlock title="Fontes de Receita" items={canvas.revenueStreams} />
+                                    </div>
+                                </div>
+                            ) : <p className="text-center text-gray-500">Clique no botão para gerar o Business Model Canvas.</p>
+                        )}
+                        <div className="text-center">
+                            <button onClick={() => handleGenerate('canvas')} disabled={loading.canvas} className="mt-6 bg-[#E5B8B8] text-white px-6 py-2 rounded-full hover:bg-[#D99A9A] transition-colors disabled:bg-gray-300">
+                                {loading.canvas ? 'Gerando...' : 'Gerar Canvas'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Financial Estimate */}
+                    <div className="bg-white p-8 rounded-2xl shadow-xl">
+                        <h3 className="text-2xl font-bold text-[#8D6E63] mb-4">Estimativa Financeira Simplificada (1º Ano)</h3>
+                         {loading.estimate ? <LoadingSkeleton /> : error.estimate ? <p className="text-red-500">{error.estimate}</p> : (
+                            <p className="text-gray-600 whitespace-pre-line">{estimate || 'Clique no botão para gerar a estimativa.'}</p>
+                        )}
+                        <button onClick={() => handleGenerate('estimate')} disabled={loading.estimate} className="mt-6 bg-[#E5B8B8] text-white px-6 py-2 rounded-full hover:bg-[#D99A9A] transition-colors disabled:bg-gray-300">
+                           {loading.estimate ? 'Gerando...' : 'Gerar Estimativa'}
+                        </button>
                     </div>
                 </div>
             </div>

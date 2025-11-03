@@ -1,202 +1,130 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
 import HeroSection from './components/HeroSection';
+import HowItWorksSection from './components/HowItWorksSection';
+import PlansSection from './components/PlansSection';
+import ThemesSection from './components/ThemesSection';
+import CakeOfTheMonthSection from './components/CakeOfTheMonthSection';
+import TestimonialsSection from './components/TestimonialsSection';
+import CreateYourOwnCakeSection from './components/CreateYourOwnCakeSection';
+import BusinessModelSection from './components/BusinessModelSection';
+import Footer from './components/Footer';
+import OnboardingModal from './components/OnboardingModal';
+import CheckoutModal from './components/CheckoutModal';
+import AuthModal from './components/AuthModal';
+import AdminPage from './components/AdminPage';
 import LazyLoadWrapper from './components/LazyLoadWrapper';
-import SectionPlaceholder from './components/SectionPlaceholder';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Plan } from './types';
-
-// --- Lazy load components ---
-const HowItWorksSection = lazy(() => import('./components/HowItWorksSection'));
-const PlansSection = lazy(() => import('./components/PlansSection'));
-const ThemesSection = lazy(() => import('./components/ThemesSection'));
-const CakeOfTheMonthSection = lazy(() => import('./components/CakeOfTheMonthSection'));
-const TestimonialsSection = lazy(() => import('./components/TestimonialsSection'));
-const CreateYourOwnCakeSection = lazy(() => import('./components/CreateYourOwnCakeSection'));
-const BusinessModelSection = lazy(() => import('./components/BusinessModelSection'));
-const Footer = lazy(() => import('./components/Footer'));
-const OnboardingModal = lazy(() => import('./components/OnboardingModal'));
-const CheckoutModal = lazy(() => import('./components/CheckoutModal'));
-const AdminPage = lazy(() => import('./components/AdminPage'));
-const AuthModal = lazy(() => import('./components/AuthModal'));
-
-const MainLayout: React.FC = () => {
-  const { user } = useAuth();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
-  const [activeSection, setActiveSection] = useState('');
-  const [authModal, setAuthModal] = useState<{isOpen: boolean, view: 'login' | 'sign_up'}>({isOpen: false, view: 'login'});
-  const [postAuthAction, setPostAuthAction] = useState<(() => void) | null>(null);
-
-
-  const handleOpenModal = () => setIsModalOpen(true);
-  const handleCloseModal = () => setIsModalOpen(false);
-  
-  const handleOpenAuthModal = (view: 'login' | 'sign_up', onSucces?: () => void) => {
-    if(onSucces) {
-      setPostAuthAction(() => onSucces); // Armazena a ação a ser executada pós-login
-    }
-    setAuthModal({isOpen: true, view});
-  };
-  const handleCloseAuthModal = () => {
-    setAuthModal({isOpen: false, view: 'login'});
-    setPostAuthAction(null); // Limpa a ação se o modal for fechado
-  };
-
-  const handleOpenCheckout = (plan: Plan) => {
-    setSelectedPlan(plan);
-    setIsCheckoutOpen(true);
-  };
-  const handleCloseCheckout = () => {
-    setIsCheckoutOpen(false);
-    setSelectedPlan(null);
-  };
-  
-  // Lógica para executar a ação pós-autenticação
-  useEffect(() => {
-    if (user && postAuthAction) {
-      postAuthAction();
-      setPostAuthAction(null);
-    }
-  }, [user, postAuthAction]);
-
-
-  // Nova lógica de assinatura que verifica a autenticação
-  const handleSubscriptionAttempt = (plan: Plan) => {
-    if (user) {
-      handleOpenCheckout(plan);
-    } else {
-      // Abre o modal de cadastro e, em caso de sucesso, abre o checkout
-      handleOpenAuthModal('sign_up', () => handleOpenCheckout(plan));
-    }
-  };
-
-  useEffect(() => {
-    const sectionIds = ['como-funciona', 'planos', 'temas', 'delicia-do-mes', 'depoimentos', 'crie-seu-bolo', 'negocio'];
-    
-    const handleScroll = () => {
-      let currentSection = '';
-      for (const id of sectionIds) {
-        const section = document.getElementById(id);
-        if (section) {
-          const rect = section.getBoundingClientRect();
-          if (rect.top <= 100 && rect.bottom >= 100) {
-            currentSection = id;
-            break;
-          }
-        }
-      }
-      setActiveSection(currentSection);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
-
-
-  return (
-    <div className="bg-[#FFF9F2] min-h-screen text-[#5D4037]">
-      <Header 
-        activeSection={activeSection}
-        onLogin={() => handleOpenAuthModal('login')}
-        onSignUp={() => handleOpenAuthModal('sign_up')}
-      />
-      <main>
-        <HeroSection onOpenModal={handleOpenModal} />
-        
-        <div id="como-funciona">
-          <LazyLoadWrapper placeholder={<SectionPlaceholder className="h-[500px]" />}>
-            <HowItWorksSection />
-          </LazyLoadWrapper>
-        </div>
-        
-        <div id="planos">
-          <LazyLoadWrapper placeholder={<SectionPlaceholder className="h-[750px]" />}>
-            <PlansSection onSelectPlan={handleSubscriptionAttempt} />
-          </LazyLoadWrapper>
-        </div>
-        
-        <div id="temas">
-          <LazyLoadWrapper placeholder={<SectionPlaceholder className="h-[600px]" />}>
-            <ThemesSection />
-          </LazyLoadWrapper>
-        </div>
-        
-        <div id="delicia-do-mes">
-          <LazyLoadWrapper placeholder={<SectionPlaceholder className="h-[650px]" />}>
-            <CakeOfTheMonthSection onOpenModal={handleOpenModal} />
-          </LazyLoadWrapper>
-        </div>
-        
-        <div id="depoimentos">
-          <LazyLoadWrapper placeholder={<SectionPlaceholder className="h-[550px]" />}>
-            <TestimonialsSection />
-          </LazyLoadWrapper>
-        </div>
-        
-        <div id="crie-seu-bolo">
-          <LazyLoadWrapper placeholder={<SectionPlaceholder className="h-[850px]" />}>
-            <CreateYourOwnCakeSection />
-          </LazyLoadWrapper>
-        </div>
-
-        <div id="negocio">
-          <LazyLoadWrapper placeholder={<SectionPlaceholder className="h-[700px]" />}>
-            <BusinessModelSection />
-          </LazyLoadWrapper>
-        </div>
-      </main>
-
-      <LazyLoadWrapper placeholder={<SectionPlaceholder className="h-[320px]" />}>
-          <Footer />
-      </LazyLoadWrapper>
-      
-      {isModalOpen && (
-        <Suspense fallback={<div className="fixed inset-0 bg-black bg-opacity-50 z-50" />}>
-          <OnboardingModal isOpen={isModalOpen} onClose={handleCloseModal} />
-        </Suspense>
-      )}
-
-      {isCheckoutOpen && selectedPlan && (
-        <Suspense fallback={<div className="fixed inset-0 bg-black bg-opacity-50 z-50" />}>
-          <CheckoutModal isOpen={isCheckoutOpen} onClose={handleCloseCheckout} plan={selectedPlan} />
-        </Suspense>
-      )}
-
-      {authModal.isOpen && (
-        <Suspense fallback={<div className="fixed inset-0 bg-black bg-opacity-50 z-50" />}>
-          <AuthModal 
-            isOpen={authModal.isOpen} 
-            onClose={handleCloseAuthModal} 
-            initialView={authModal.view}
-          />
-        </Suspense>
-      )}
-    </div>
-  );
-};
-
+import { AuthProvider } from './contexts/AuthContext';
 
 const App: React.FC = () => {
+  const [activeSection, setActiveSection] = useState('hero');
+  const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalView, setAuthModalView] = useState<'login' | 'signup'>('login');
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+
+  useEffect(() => {
+    const sections = document.querySelectorAll('section');
+    const options = {
+      root: null,
+      rootMargin: '-100px 0px -50% 0px',
+      threshold: 0,
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          setActiveSection(entry.target.id);
+        }
+      });
+    }, options);
+
+    sections.forEach(section => {
+      if(section.id) observer.observe(section)
+    });
+
+    return () => sections.forEach(section => {
+      if(section.id) observer.unobserve(section)
+    });
+  }, []);
+
+  const handleSelectPlan = (plan: Plan) => {
+    setSelectedPlan(plan);
+    setIsCheckoutModalOpen(true);
+  };
+  
+  const handleOpenLogin = () => {
+    setAuthModalView('login');
+    setIsAuthModalOpen(true);
+  };
+  
+  const handleOpenSignUp = () => {
+    setAuthModalView('signup');
+    setIsAuthModalOpen(true);
+  };
+
+  const MainLayout = () => (
+    <div className="bg-[#FFFAF0] font-sans">
+      <Header 
+        activeSection={activeSection}
+        onLogin={handleOpenLogin}
+        onSignUp={handleOpenSignUp}
+      />
+      <main>
+        <section id="hero"><HeroSection onOpenModal={() => setIsQuizModalOpen(true)} /></section>
+        <section id="como-funciona"><HowItWorksSection /></section>
+        <section id="planos"><PlansSection onSelectPlan={handleSelectPlan} /></section>
+        <LazyLoadWrapper>
+          <section id="temas"><ThemesSection /></section>
+        </LazyLoadWrapper>
+        <LazyLoadWrapper>
+            <section id="bolo-do-mes"><CakeOfTheMonthSection onOpenModal={() => setIsQuizModalOpen(true)} /></section>
+        </LazyLoadWrapper>
+          <LazyLoadWrapper>
+          <section id="depoimentos"><TestimonialsSection /></section>
+        </LazyLoadWrapper>
+        <LazyLoadWrapper>
+          <section id="crie-seu-bolo"><CreateYourOwnCakeSection /></section>
+        </LazyLoadWrapper>
+        <LazyLoadWrapper>
+          <section id="negocio"><BusinessModelSection /></section>
+        </LazyLoadWrapper>
+      </main>
+      <Footer />
+
+      <OnboardingModal isOpen={isQuizModalOpen} onClose={() => setIsQuizModalOpen(false)} />
+      
+      {selectedPlan && (
+          <CheckoutModal 
+              isOpen={isCheckoutModalOpen} 
+              onClose={() => setIsCheckoutModalOpen(false)} 
+              plan={selectedPlan}
+              onOpenLogin={handleOpenLogin}
+          />
+      )}
+
+      <AuthModal 
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        initialView={authModalView}
+      />
+    </div>
+  );
+
+
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Suspense fallback={<div className="w-full h-screen bg-[#FFF9F2]" />}>
-          <Routes>
-            <Route path="/" element={<MainLayout />} />
-            <Route path="/admin" element={<AdminPage />} />
-          </Routes>
-        </Suspense>
-      </AuthProvider>
-    </BrowserRouter>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/*" element={<MainLayout />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 };
-
 
 export default App;
