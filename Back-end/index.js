@@ -72,7 +72,6 @@ app.post('/taste-profile', async (req, res) => {
   }
 });
 
-// Adicionando as rotas de IA que faltavam
 app.get('/investor-pitch', async (req, res) => {
     try {
         const prompt = "Crie um 'elevator pitch' para investidores para a 'BoloFlix', uma startup de assinatura de bolos caseiros com temas mensais. Destaque o modelo de negócio, o mercado-alvo e o potencial de crescimento. Seja conciso e inspirador.";
@@ -256,6 +255,7 @@ app.post('/subscriptions', async (req, res) => {
       return res.status(400).json({ message: 'ID do usuário é obrigatório para criar uma assinatura.' });
     }
     
+    // THE FIX: Explicitly map camelCase from request to snake_case for Supabase
     const { data: subscriptionData, error: supabaseError } = await supabase
       .from('subscriptions')
       .insert({

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
 import HeroSection from './components/HeroSection';
@@ -15,16 +15,20 @@ import CheckoutModal from './components/CheckoutModal';
 import AuthModal from './components/AuthModal';
 import AdminPage from './components/AdminPage';
 import LazyLoadWrapper from './components/LazyLoadWrapper';
-import { Plan } from './types';
-import { AuthProvider } from './contexts/AuthContext';
+import { Plan, User } from './types';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
+  const { user } = useAuth();
   const [activeSection, setActiveSection] = useState('hero');
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalView, setAuthModalView] = useState<'login' | 'signup'>('login');
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  
+  // Ref to track previous user state to detect login event
+  const prevUserRef = useRef<User | null>(null);
 
   useEffect(() => {
     const sections = document.querySelectorAll('section');
@@ -51,9 +55,24 @@ const App: React.FC = () => {
     });
   }, []);
 
+  // Effect to handle post-login actions
+  useEffect(() => {
+    // If user just logged in (prev was null, current is not) AND there's a plan selected
+    if (!prevUserRef.current && user && selectedPlan) {
+      setIsAuthModalOpen(false); // Close login modal
+      setIsCheckoutModalOpen(true); // Open checkout modal
+    }
+    prevUserRef.current = user;
+  }, [user, selectedPlan]);
+
+
   const handleSelectPlan = (plan: Plan) => {
     setSelectedPlan(plan);
-    setIsCheckoutModalOpen(true);
+    if (user) {
+      setIsCheckoutModalOpen(true);
+    } else {
+      handleOpenSignUp();
+    }
   };
   
   const handleOpenLogin = () => {
@@ -66,7 +85,7 @@ const App: React.FC = () => {
     setIsAuthModalOpen(true);
   };
 
-  const MainLayout = () => (
+  return (
     <div className="bg-[#FFFAF0] font-sans">
       <Header 
         activeSection={activeSection}
@@ -97,10 +116,13 @@ const App: React.FC = () => {
 
       <OnboardingModal isOpen={isQuizModalOpen} onClose={() => setIsQuizModalOpen(false)} />
       
-      {selectedPlan && (
+      {selectedPlan && user && (
           <CheckoutModal 
               isOpen={isCheckoutModalOpen} 
-              onClose={() => setIsCheckoutModalOpen(false)} 
+              onClose={() => {
+                setIsCheckoutModalOpen(false);
+                setSelectedPlan(null); // Clear selected plan when closing modal
+              }} 
               plan={selectedPlan}
               onOpenLogin={handleOpenLogin}
           />
@@ -108,23 +130,30 @@ const App: React.FC = () => {
 
       <AuthModal 
         isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
+        onClose={() => {
+          setIsAuthModalOpen(false);
+          if(!user) {
+            setSelectedPlan(null); // If user closes modal without logging in, forget the plan
+          }
+        }}
         initialView={authModalView}
       />
     </div>
   );
+};
 
 
+const App: React.FC = () => {
   return (
     <AuthProvider>
       <Router>
         <Routes>
           <Route path="/admin" element={<AdminPage />} />
-          <Route path="/*" element={<MainLayout />} />
+          <Route path="/*" element={<AppContent />} />
         </Routes>
       </Router>
     </AuthProvider>
   );
-};
+}
 
 export default App;

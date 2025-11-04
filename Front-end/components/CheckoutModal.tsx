@@ -7,7 +7,7 @@ const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
-  plan: Plan | null; // Allow plan to be null initially
+  plan: Plan | null;
   onOpenLogin: () => void;
 }
 
@@ -26,7 +26,6 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, plan, on
         e.preventDefault();
         
         if (!user || !plan) {
-            // This case should ideally not happen if the flow is correct, but as a safeguard:
             setErrorMessage("Usuário não logado ou plano não selecionado.");
             setStep('error');
             return;
@@ -42,7 +41,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, plan, on
 
         try {
             const subscriptionData = {
-                userId: user.id, // THE FIX: Attach the user ID to the request
+                userId: user.id,
                 customerName: customerName,
                 customerEmail: user.email,
                 planTitle: plan.title,
@@ -72,13 +71,11 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, plan, on
         }
     };
     
-    // Reset state when modal is closed/reopened
     React.useEffect(() => {
         if (isOpen) {
             setStep('details');
             setErrorMessage('');
             setFlavorPreference('');
-            // Pre-fill name from Supabase metadata if available, otherwise use email part
             setCustomerName(user?.user_metadata?.full_name || user?.email?.split('@')[0] || '');
         }
     }, [isOpen, user]);
@@ -94,8 +91,11 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, plan, on
                 
                 {step === 'details' && (
                     <form onSubmit={handleSubmit}>
-                        <h2 className="text-2xl md:text-3xl font-bold text-center mb-2 text-[#8D6E63]">Quase lá!</h2>
-                         <p className="text-center text-gray-600 mb-4">Você está assinando o plano <span className="font-bold text-[#D99A9A]">{plan.title}</span> por <span className="font-bold text-[#D99A9A]">R${plan.price},00 /mês</span>.</p>
+                        <h2 className="text-2xl md:text-3xl font-bold text-center mb-2 text-[#8D6E63]">Finalizar Assinatura</h2>
+                        <div className="bg-pink-100 border border-pink-200 rounded-lg p-4 text-center my-4">
+                            <div className="font-bold text-lg text-[#8D6E63]">{plan.title}</div>
+                            <div className="text-3xl font-extrabold text-[#D99A9A]">R${plan.price},00 <span className="text-lg font-medium text-gray-600">/mês</span></div>
+                        </div>
                         <p className="text-center text-sm text-gray-500 mb-6">Logado como: <span className="font-semibold">{user?.email}</span></p>
 
                         <div className="space-y-4">
@@ -109,14 +109,14 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, plan, on
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label htmlFor="delivery_day" className="block text-sm font-medium text-[#5D4037]">Melhor dia para entrega</label>
+                                    <label htmlFor="delivery_day" className="block text-sm font-medium text-[#5D4037]">Dia da Entrega</label>
                                     <select name="delivery_day" id="delivery_day" value={deliveryDay} onChange={(e) => setDeliveryDay(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#D99A9A] focus:border-[#D99A9A]">
                                         <option>Quarta-feira</option>
                                         <option>Sexta-feira</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label htmlFor="delivery_time" className="block text-sm font-medium text-[#5D4037]">Período</label>
+                                    <label htmlFor="delivery_time" className="block text-sm font-medium text-[#5D4037]">Horário</label>
                                     <select name="delivery_time" id="delivery_time" value={deliveryTime} onChange={(e) => setDeliveryTime(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#D99A9A] focus:border-[#D99A9A]">
                                         <option>Manhã (9h-12h)</option>
                                         <option>Tarde (14h-17h)</option>
